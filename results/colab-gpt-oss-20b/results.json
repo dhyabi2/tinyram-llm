@@ -1,0 +1,33 @@
+{
+ "machine": {
+  "cpu": "Intel(R) Xeon(R) CPU @ 2.20GHz",
+  "arch": "x86_64",
+  "physical_cores": 1,
+  "ram_gb": 12.7,
+  "ram_cap_gb": 4.0
+ },
+ "llama_cpp": "338fce6 HIP/CUDA: remove pragma unroll from loops in conv2d where itteration count cant be infered at compile time (#31255)",
+ "model": "gpt-oss-20b-MXFP4.gguf",
+ "disk": {
+  "seq_mib_s": 209,
+  "rand1m_mib_s": 647
+ },
+ "cases": [
+  {
+   "case": "mmap",
+   "status": "ok",
+   "tok_s_median": 0.093693,
+   "tok_s_all": [
+    0.095033,
+    0.092353
+   ],
+   "faults_per_token_median": 455.703125,
+   "read_mib_median": 183730.59765625,
+   "effective_gflops": 0.7
+  }
+ ],
+ "skipped": [
+  "B_swap: not requested (pass --swap-test on a box where changing swap is safe)"
+ ],
+ "note": "faults_per_token and tok_s are measured; effective_gflops assumes the run is compute-bound"
+}

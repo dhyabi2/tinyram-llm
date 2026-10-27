@@ -1,0 +1,33 @@
+[probe] machine: Linux x86_64, 2 physical cores, 5.8 GB RAM, 28 GB free in /root/moe-probe, cpu='AMD EPYC 7B13 64-Core Processor', cgroup=v2, root=yes
+[probe] plan: cap usable RAM at 5 GB, run Qwen3-30B-A3B-Q4_K_M.gguf (Qwen/Qwen3-30B-A3B-GGUF), 2 reps x 32 tokens; needs ~27 GB free disk (have 28)
+error: externally-managed-environment
+
+× This environment is externally managed
+╰─> To install Python packages system-wide, try apt install
+    python3-xyz, where xyz is the package you are trying to
+    install.
+    
+    If you wish to install a non-Debian-packaged Python package,
+    create a virtual environment using python3 -m venv path/to/venv.
+    Then use path/to/venv/bin/python and path/to/venv/bin/pip. Make
+    sure you have python3-full installed.
+    
+    If you wish to install a non-Debian packaged Python application,
+    it may be easiest to use pipx install xyz, which will manage a
+    virtual environment for you. Make sure you have pipx installed.
+    
+    See /usr/share/doc/python3.12/README.venv for more information.
+
+note: If you believe this is a mistake, please contact your Python installation or OS distribution provider. You can override this, at the risk of breaking your Python installation or OS, by passing --break-system-packages.
+hint: See PEP 668 for the detailed specification.
+[probe] pip install huggingface_hub failed
+[probe] llama.cpp: 338fce6 HIP/CUDA: remove pragma unroll from loops in conv2d where itteration count cant be infered at compile time (#31255)
+[probe] model: Qwen3-30B-A3B-Q4_K_M.gguf 18.56 GB
+[probe] disk: sequential 1 MiB read, then random 1 MiB read (direct I/O, 20 s each) on the model file
+[probe] disk: sequential 120 MiB/s, random 1 MiB 120 MiB/s
+[probe] RAM cap: ballast of 819 MiB held by pid 60711 (MemAvailable now 4.3 GB)
+[probe] case 1/2: B_mmap  (-lm mmap, file-backed pages, swap OFF)
+[probe] {"case": "mmap", "status": "ok", "tok_s_median": 0.1180975, "tok_s_all": [0.117948, 0.118247], "faults_per_token_median": 3709.953125, "read_mib_median": 36435.01171875}
+[probe] case 2/2: B_swap  (-lm none: weights as anonymous memory, swap ON)
+[probe] SKIPPED: B_swap: not requested (pass --swap-test on a box where changing swap is safe)
+[probe] done. Send back: /root/moe-probe/results.json  and  /root/moe-probe/probe.log

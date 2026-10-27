@@ -1,0 +1,33 @@
+{
+ "machine": {
+  "cpu": "AMD EPYC 7B13 64-Core Processor",
+  "arch": "x86_64",
+  "physical_cores": 2,
+  "ram_gb": 5.8,
+  "ram_cap_gb": 5.0
+ },
+ "llama_cpp": "338fce6 HIP/CUDA: remove pragma unroll from loops in conv2d where itteration count cant be infered at compile time (#31255)",
+ "model": "Qwen3-30B-A3B-Q4_K_M.gguf",
+ "disk": {
+  "seq_mib_s": 120,
+  "rand1m_mib_s": 120
+ },
+ "cases": [
+  {
+   "case": "mmap",
+   "status": "ok",
+   "tok_s_median": 0.1180975,
+   "tok_s_all": [
+    0.117948,
+    0.118247
+   ],
+   "faults_per_token_median": 3709.953125,
+   "read_mib_median": 36435.01171875,
+   "effective_gflops": 0.8
+  }
+ ],
+ "skipped": [
+  "B_swap: not requested (pass --swap-test on a box where changing swap is safe)"
+ ],
+ "note": "faults_per_token and tok_s are measured; effective_gflops assumes the run is compute-bound"
+}

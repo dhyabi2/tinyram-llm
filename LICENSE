@@ -1,3 +1,29 @@
-Business Source License 1.1. Licensor: dhyabi@gmail.com ,  GitHub account https://github.com/dhyabi2 
-. Licensed Work: , version 1.0. The Licensed Work is provided under this license, not the MIT license, until the Change Date of October 28, 2031. After that date, it converts automatically to the MIT license. Grant of Rights. You may use, copy, modify, and distribute the Licensed Work for any purpose except as restricted below. Restrictions. If your company or any affiliate has annual gross revenue exceeding fifty million US dollars, you may not use the Licensed Work without a separate paid commercial license from the Licencor. To obtain one, contact dhyabi@gmail.com , https://github.com/dhyabi2 
-. Notices. You must retain all copyright and license notices in any copy or modification. Disclaimer. The Licensed Work is provided as is, without warranty of any kind. That's the core. You'd fill in the software name, tweak the revenue threshold if you want, and you're set.
+Business Source License 1.1 (custom terms)
+
+Licensor:       dhyabi2 <dhyabi@gmail.com>, https://github.com/dhyabi2
+Licensed Work:  tinyram-llm, version 1.0
+Change Date:    October 28, 2031
+Change License: MIT License
+
+The Licensed Work is provided under this license, not the MIT license, until
+the Change Date. After the Change Date it converts automatically to the Change
+License (the MIT license).
+
+Grant of Rights
+You may use, copy, modify, and distribute the Licensed Work for any purpose
+except as restricted below.
+
+Restrictions
+If your company or any affiliate has annual gross revenue exceeding fifty
+million US dollars (US$50,000,000), you may not use the Licensed Work without a
+separate paid commercial license from the Licensor. To obtain one, contact
+dhyabi@gmail.com or https://github.com/dhyabi2.
+
+Notices
+You must retain all copyright and license notices in any copy or modification
+of the Licensed Work.
+
+Disclaimer
+The Licensed Work is provided "as is", without warranty of any kind, express or
+implied, including but not limited to the warranties of merchantability,
+fitness for a particular purpose and noninfringement.

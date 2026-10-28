@@ -1,0 +1,29 @@
+{
+ "machine": {
+  "cpu": "Intel(R) Core(TM) i7-1068NG7 CPU @ 2.30GHz",
+  "physical_cores": 4,
+  "ram_gb": 16.0
+ },
+ "model": "Qwen3.8-27B-UD-IQ4_XS.gguf",
+ "model_gb": 14.25,
+ "case": "mmap",
+ "runs": [
+  {
+   "rep": 1,
+   "tok_s": 0.027646,
+   "pageins_mib": 217130.0,
+   "read_mib_per_token": 13570.6,
+   "wall_s": 613.6
+  },
+  {
+   "rep": 2,
+   "tok_s": 0.025602,
+   "pageins_mib": 217240.2,
+   "read_mib_per_token": 13577.5,
+   "wall_s": 674.1
+  }
+ ],
+ "tok_s_median": 0.026624000000000002,
+ "read_mib_per_token_median": 13574.05,
+ "note": "page-ins are system-wide (vm_stat), so other apps add noise; no RAM cap applied"
+}

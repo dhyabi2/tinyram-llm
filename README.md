@@ -50,4 +50,4 @@ Python tools need `numpy` (`pip install numpy`). C test: `cc -O1 -o t c/test_exp
 
 ## License
 
-MIT, see `LICENSE`.
+Business Source License 1.1, see `LICENSE`. Free to use, copy, modify and distribute for any purpose, except that a company (with affiliates) over US$50 million annual gross revenue needs a separate commercial license. It converts to the MIT license on 2031-10-28.

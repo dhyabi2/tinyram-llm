@@ -1,0 +1,27 @@
+diff --git a/src/llama-model-loader.cpp b/src/llama-model-loader.cpp
+index 6cc0b20..9c996ca 100644
+--- a/src/llama-model-loader.cpp
++++ b/src/llama-model-loader.cpp
+@@ -1,4 +1,6 @@
+ #include "llama-model-loader.h"
++#include <sys/mman.h>
++#include <unistd.h>
+ 
+ #include "ggml-alloc.h"
+ #include "ggml.h"
+@@ -1662,6 +1664,15 @@ bool llama_model_loader::load_all_data(
+                     lmlock->grow_to(weight->offs + n_size);
+                 }
+ 
++                // experiment: LLAMA_MLOCK_DENSE=1 wires every tensor that is not an expert tensor, so the explicit read pool path does not fault them through mmap
++                if (getenv("LLAMA_MLOCK_DENSE") && !strstr(ggml_get_name(cur), "_exps")) {
++                    static const size_t pg = (size_t) sysconf(_SC_PAGESIZE);
++                    static size_t locked = 0;
++                    const uintptr_t a0 = (uintptr_t) data & ~(uintptr_t) (pg - 1), a1 = ((uintptr_t) data + n_size + pg - 1) & ~(uintptr_t) (pg - 1);
++                    if (mlock((void *) a0, a1 - a0) == 0) { locked += a1 - a0; } else { static bool warned = false; if (!warned) { warned = true; LLAMA_LOG_WARN("%s: mlock of dense tensors failed after %.1f MiB\n", __func__, locked / 1048576.0); } }
++                    if (getenv("GGML_MOE_POOL_LOG") && (cur->name[0] == 'o' || strstr(cur->name, "blk.47.attn_output"))) { LLAMA_LOG_INFO("%s: dense tensors wired so far: %.1f MiB\n", __func__, locked / 1048576.0); }
++                }
++
+                 auto & mmap_used = mmaps_used[weight->idx];
+                 mmap_used.first  = std::min(mmap_used.first,  weight->offs);
+                 mmap_used.second = std::max(mmap_used.second, weight->offs + n_size);

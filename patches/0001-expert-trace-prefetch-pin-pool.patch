@@ -1,0 +1,477 @@
+diff --git a/ggml/src/ggml-cpu/ggml-cpu.c b/ggml/src/ggml-cpu/ggml-cpu.c
+index 8620c6c..976b750 100644
+--- a/ggml/src/ggml-cpu/ggml-cpu.c
++++ b/ggml/src/ggml-cpu/ggml-cpu.c
+@@ -1480,6 +1480,233 @@ struct mmid_row_mapping {
+     int32_t i2;
+ };
+ 
++
++// ---------------------------------------------------------------------------------------------------------------------------------------------------
++// Explicit expert read pool (experiment, decode steps only): GGML_MOE_POOL=<offsets file> GGML_MOE_POOL_MB=<capacity>.
++// The offsets file (tools/gguf_offsets.py) starts with "FILE <model path>" and has one line "<tensor name> <file offset> <bytes per expert>" per *_exps.weight tensor.
++// For a single-token step the experts the router chose are read with pread() into an LRU pool of aligned buffers (cache-bypassing: F_NOCACHE on macOS, O_DIRECT with
++// GGML_MOE_POOL_DIRECT=1 on Linux) and the matmul reads them from there; the mmap'd expert pages are never touched. Prefill batches and any tensor not in the file use the mmap data.
++// GGML_MOE_POOL_ASYNC=<n> (n >= 1) turns on overlap: n blocking I/O threads read the missing experts while the compute threads already work on the experts that are resident
++// (hits first), and the reads for the layer's sibling tensors (gate/up/down share the router output) are queued as soon as the first of them runs.
++#if !defined(_WIN32)
++#include <fcntl.h>
++#include <unistd.h>
++#include <errno.h>
++#include <stdint.h>
++#include <pthread.h>
++#include <sched.h>
++typedef struct moe_pool_entry {
++    int tensor, expert; uint64_t len; uint8_t * base; uint8_t * ptr; int64_t stamp; int ready; int queued;
++    struct moe_pool_entry * prev, * next, * hnext;
++} moe_pool_entry;
++typedef struct { char name[96]; uint64_t off, stride; const void * data; } moe_pool_tensor; // data: src0->data this entry was bound to on first use
++#define MOE_POOL_MAXT 512
++#define MOE_POOL_HASH 8192
++#define MOE_POOL_TODO 256
++#define MOE_POOL_MAXIO 8
++static struct {
++    int state;                      // -1 not read, 0 off, 1 on
++    int fd, direct, log, async;
++    moe_pool_tensor t[MOE_POOL_MAXT]; int nt;
++    uint64_t cap, used; int64_t op;
++    moe_pool_entry * mru, * lru; moe_pool_entry * h[MOE_POOL_HASH];
++    uint64_t hits, misses, evictions, bytes, fallbacks, ops, stalls, siblings;
++    // work list of the current op
++    moe_pool_entry * todo[MOE_POOL_TODO]; int ntodo; moe_pool_entry * cur[1024]; int ncur; int order[1024]; int active; int cur_t;
++    // I/O workers
++    pthread_t io[MOE_POOL_MAXIO]; int nio; pthread_mutex_t mu; pthread_cond_t cv; moe_pool_entry * q[1024]; int qh, qt;
++} moe_pool = { .state = -1, .mu = PTHREAD_MUTEX_INITIALIZER, .cv = PTHREAD_COND_INITIALIZER };
++
++static void moe_pool_report(void) {
++    if (moe_pool.state == 1 && moe_pool.log) {
++        fprintf(stderr, "moe-pool: ops=%llu hits=%llu misses=%llu evictions=%llu fallbacks=%llu siblings=%llu stalls=%llu read=%.1f MiB used=%.1f MiB async=%d\n", (unsigned long long) moe_pool.ops, (unsigned long long) moe_pool.hits,
++                (unsigned long long) moe_pool.misses, (unsigned long long) moe_pool.evictions, (unsigned long long) moe_pool.fallbacks, (unsigned long long) moe_pool.siblings, (unsigned long long) moe_pool.stalls,
++                moe_pool.bytes / 1048576.0, moe_pool.used / 1048576.0, moe_pool.async);
++    }
++}
++static int moe_pool_find_tensor(const char * name) {
++    for (int i = 0; i < moe_pool.nt; ++i) if (strcmp(moe_pool.t[i].name, name) == 0) return i;
++    return -1;
++}
++static void moe_pool_read_entry(moe_pool_entry * x) {
++    const uint64_t stride = moe_pool.t[x->tensor].stride;
++    const uint64_t off = moe_pool.t[x->tensor].off + (uint64_t) x->expert * stride, a = off & ~4095ull, want = ((off & 4095) + stride + 4095) & ~4095ull;
++    uint64_t got = 0;
++    while (got < want) { ssize_t r = pread(moe_pool.fd, x->base + got, want - got, (off_t) (a + got)); if (r < 0 && errno == EINTR) continue; if (r <= 0) break; got += (uint64_t) r; }
++    if (got < (off & 4095) + stride) { fprintf(stderr, "moe-pool: short read %s expert %d (%llu of %llu)\n", moe_pool.t[x->tensor].name, x->expert, (unsigned long long) got, (unsigned long long) want); abort(); }
++    __atomic_add_fetch(&moe_pool.bytes, got, __ATOMIC_RELAXED);
++}
++static void * moe_pool_io_main(void * arg) {
++    (void) arg;
++    for (;;) {
++        pthread_mutex_lock(&moe_pool.mu);
++        while (moe_pool.qh == moe_pool.qt) pthread_cond_wait(&moe_pool.cv, &moe_pool.mu);
++        moe_pool_entry * x = moe_pool.q[moe_pool.qh++ % 1024];
++        pthread_mutex_unlock(&moe_pool.mu);
++        moe_pool_read_entry(x);
++        __atomic_store_n(&x->ready, 1, __ATOMIC_RELEASE);
++    }
++    return NULL;
++}
++static void moe_pool_init(void) {
++    moe_pool.state = 0;
++    const char * path = getenv("GGML_MOE_POOL"); if (!path) return;
++    FILE * f = fopen(path, "r"); if (!f) return;
++    char line[1024], model[1024] = {0};
++    while (fgets(line, sizeof line, f)) {
++        char nm[96]; unsigned long long off, stride;
++        if (strncmp(line, "FILE ", 5) == 0) { size_t n = strlen(line + 5); while (n && (line[4 + n] == '\n' || line[4 + n] == '\r')) n--; memcpy(model, line + 5, n); model[n] = 0; continue; }
++        if (sscanf(line, "%95s %llu %llu", nm, &off, &stride) == 3 && moe_pool.nt < MOE_POOL_MAXT) {
++            snprintf(moe_pool.t[moe_pool.nt].name, sizeof moe_pool.t[0].name, "%s", nm); moe_pool.t[moe_pool.nt].off = off; moe_pool.t[moe_pool.nt].stride = stride; moe_pool.nt++;
++        }
++    }
++    fclose(f);
++    if (!model[0] || moe_pool.nt == 0) return;
++    const char * mb = getenv("GGML_MOE_POOL_MB"); { double m = mb ? atof(mb) : 1024.0; moe_pool.cap = m > 0 ? (uint64_t) (m * 1048576.0) : 0; }
++    moe_pool.direct = getenv("GGML_MOE_POOL_DIRECT") != NULL; moe_pool.log = getenv("GGML_MOE_POOL_LOG") != NULL;
++    int flags = O_RDONLY;
++#if defined(O_DIRECT)
++    if (moe_pool.direct) flags |= O_DIRECT;
++#endif
++    moe_pool.fd = open(model, flags); if (moe_pool.fd < 0) { fprintf(stderr, "moe-pool: cannot open %s\n", model); return; }
++#if defined(__APPLE__) && defined(F_NOCACHE)
++    fcntl(moe_pool.fd, F_NOCACHE, 1);
++#endif
++    const char * as = getenv("GGML_MOE_POOL_ASYNC"); int na = as ? atoi(as) : 0; if (na > MOE_POOL_MAXIO) na = MOE_POOL_MAXIO;
++    for (int i = 0; i < na; ++i) { if (pthread_create(&moe_pool.io[i], NULL, moe_pool_io_main, NULL) != 0) break; moe_pool.nio++; }
++    moe_pool.async = moe_pool.nio > 0;
++    moe_pool.state = 1; atexit(moe_pool_report);
++    fprintf(stderr, "moe-pool: %d tensors, capacity %.0f MiB, %s, %d io threads\n", moe_pool.nt, moe_pool.cap / 1048576.0, moe_pool.direct ? "direct" : "uncached", moe_pool.nio);
++}
++static void moe_pool_unlink(moe_pool_entry * e) {
++    if (e->prev) e->prev->next = e->next; else moe_pool.mru = e->next;
++    if (e->next) e->next->prev = e->prev; else moe_pool.lru = e->prev;
++    e->prev = e->next = NULL;
++}
++static void moe_pool_push_front(moe_pool_entry * e) {
++    e->prev = NULL; e->next = moe_pool.mru; if (moe_pool.mru) moe_pool.mru->prev = e; moe_pool.mru = e; if (!moe_pool.lru) moe_pool.lru = e;
++}
++static unsigned moe_pool_hash(int t, int e) { return ((unsigned) t * 2654435761u ^ (unsigned) e * 40503u) % MOE_POOL_HASH; }
++static moe_pool_entry * moe_pool_lookup(int t, int e) {
++    for (moe_pool_entry * x = moe_pool.h[moe_pool_hash(t, e)]; x; x = x->hnext) if (x->tensor == t && x->expert == e) return x;
++    return NULL;
++}
++static void moe_pool_evict(moe_pool_entry * x) {
++    while (x->queued && !__atomic_load_n(&x->ready, __ATOMIC_ACQUIRE)) sched_yield();   // an I/O thread may still be writing into the buffer
++    moe_pool_entry ** pp = &moe_pool.h[moe_pool_hash(x->tensor, x->expert)];
++    while (*pp && *pp != x) pp = &(*pp)->hnext;
++    if (*pp) *pp = x->hnext;
++    moe_pool_unlink(x); moe_pool.used -= x->len; free(x->base); free(x); moe_pool.evictions++;
++}
++// undo the entries this op created but did not load (they are in the hash/LRU with uninitialised buffers and would be served as hits by a later op)
++static int moe_pool_rollback(void) {
++    for (int i = 0; i < moe_pool.ntodo; ++i) { moe_pool_evict(moe_pool.todo[i]); moe_pool.evictions--; moe_pool.misses--; }
++    moe_pool.ntodo = 0; moe_pool.ncur = 0; moe_pool.active = 0; moe_pool.fallbacks++; return 0;
++}
++// make tensor t / expert e resident (look up, or create an entry and put it on the todo list); stamp protects it from eviction until that op number has passed. NULL = failure (caller rolls back)
++static moe_pool_entry * moe_pool_get(int t, int e, int64_t stamp, int * is_new) {
++    const uint64_t stride = moe_pool.t[t].stride; *is_new = 0;
++    moe_pool_entry * x = moe_pool_lookup(t, e);
++    if (x) { if (stamp > x->stamp) x->stamp = stamp; moe_pool_unlink(x); moe_pool_push_front(x); return x; }
++    if (moe_pool.ntodo >= MOE_POOL_TODO) return NULL;
++    while (moe_pool.used + stride + 8192 > moe_pool.cap) {
++        moe_pool_entry * v = moe_pool.lru; while (v && v->stamp >= moe_pool.op) v = v->prev;
++        if (!v) return NULL;
++        moe_pool_evict(v);
++    }
++    x = calloc(1, sizeof *x); if (!x) return NULL;
++    x->tensor = t; x->expert = e; x->len = stride + 8192;
++    if (posix_memalign((void **) &x->base, 4096, x->len)) { free(x); return NULL; }
++    uint64_t off = moe_pool.t[t].off + (uint64_t) e * stride; x->ptr = x->base + (off & 4095); x->stamp = stamp; x->ready = 0;
++    unsigned hh = moe_pool_hash(t, e); x->hnext = moe_pool.h[hh]; moe_pool.h[hh] = x; moe_pool_push_front(x); moe_pool.used += x->len; moe_pool.misses++;
++    moe_pool.todo[moe_pool.ntodo++] = x; *is_new = 1; return x;
++}
++// thread 0, before the first barrier of the op: decide hits/misses and allocate buffers; returns 1 if the pool serves this op
++static int moe_pool_prepare(const struct ggml_tensor * src0, const struct ggml_tensor * ids) {
++    if (moe_pool.state < 0) moe_pool_init();
++    moe_pool.active = 0; moe_pool.ntodo = 0; moe_pool.ncur = 0;
++    if (moe_pool.state != 1 || ids->ne[1] != 1) return 0;
++    const int t = moe_pool_find_tensor(src0->name); if (t < 0) return 0;
++    const uint64_t stride = moe_pool.t[t].stride; const int n_ids = (int) ids->ne[0];
++    // the offsets file must describe *this* tensor: same expert stride, and the same memory the first op bound the name to (two models/contexts may share tensor names)
++    if (src0->nb[2] != stride || src0->ne[2] > INT32_MAX) { moe_pool.fallbacks++; return 0; }
++    if (!moe_pool.t[t].data) moe_pool.t[t].data = src0->data; else if (moe_pool.t[t].data != src0->data) { moe_pool.fallbacks++; return 0; }
++    int32_t eid[64];
++    if (n_ids > 64 || n_ids < 1) { moe_pool.fallbacks++; return 0; }
++    for (int id = 0; id < n_ids; ++id) { eid[id] = *(const int32_t *) ((const char *) ids->data + id * ids->nb[0]); if (eid[id] < 0 || eid[id] >= src0->ne[2]) { moe_pool.fallbacks++; return 0; } }
++    moe_pool.cur_t = t;
++    if ((uint64_t) n_ids * (stride + 8192) > moe_pool.cap) { moe_pool.fallbacks++; return 0; }
++    moe_pool.op++; moe_pool.ops++;
++    // siblings: gate/up/down of one layer share the router output; read them early so they overlap with the compute of this op
++    int sib[2], nsib = 0;
++    if (moe_pool.async) {
++        const char * nm = src0->name; char sn[96]; const char * g = strstr(nm, "ffn_gate_exps"); const char * gu = strstr(nm, "ffn_gate_up_exps");
++        if (g && !gu) {
++            const char * what[2] = {"ffn_up_exps", "ffn_down_exps"};
++            for (int k = 0; k < 2; ++k) { snprintf(sn, sizeof sn, "%.*s%s%s", (int) (g - nm), nm, what[k], g + strlen("ffn_gate_exps")); int ts = moe_pool_find_tensor(sn); if (ts >= 0 && moe_pool.t[ts].stride + 8192 > 0) sib[nsib++] = ts; }
++        } else if (gu) {
++            snprintf(sn, sizeof sn, "%.*sffn_down_exps%s", (int) (gu - nm), nm, gu + strlen("ffn_gate_up_exps")); int ts = moe_pool_find_tensor(sn); if (ts >= 0) sib[nsib++] = ts;
++        }
++        uint64_t need = (uint64_t) n_ids * (stride + 8192); for (int k = 0; k < nsib; ++k) need += (uint64_t) n_ids * (moe_pool.t[sib[k]].stride + 8192);
++        if (need > moe_pool.cap) nsib = 0;
++    }
++    int nready = 0, nmiss = 0; int hitidx[64], missidx[64]; int ncur0 = 0;
++    for (int id = 0; id < n_ids; ++id) {
++        int dup = 0; for (int k = 0; k < id; ++k) if (eid[k] == eid[id]) dup = 1; if (dup) continue;
++        int isnew; moe_pool_entry * x = moe_pool_get(t, eid[id], moe_pool.op + nsib, &isnew);   // protected until the last sibling op has run
++        if (!x) return moe_pool_rollback();
++        if (isnew) { missidx[nmiss++] = ncur0; } else { moe_pool.hits++; if (__atomic_load_n(&x->ready, __ATOMIC_ACQUIRE)) hitidx[nready++] = ncur0; else missidx[nmiss++] = ncur0; }
++        moe_pool.cur[ncur0++] = x;
++    }
++    moe_pool.ncur = ncur0;
++    for (int k = 0; k < nready; ++k) moe_pool.order[k] = moe_pool.cur[hitidx[k]]->expert;
++    for (int k = 0; k < nmiss; ++k) moe_pool.order[nready + k] = moe_pool.cur[missidx[k]]->expert;
++    for (int k = 0; k < nsib; ++k) {
++        for (int id = 0; id < n_ids; ++id) {
++            int dup = 0; for (int q = 0; q < id; ++q) if (eid[q] == eid[id]) dup = 1; if (dup) continue;
++            int isnew; moe_pool_entry * x = moe_pool_get(sib[k], eid[id], moe_pool.op + nsib, &isnew);
++            if (!x) { nsib = k; break; }   // out of room: stop prefetching siblings (their own op will fall back or fetch)
++            (void) x; if (isnew) moe_pool.siblings++;
++        }
++    }
++    if (moe_pool.async) {
++        pthread_mutex_lock(&moe_pool.mu);
++        int inline_n = 0; moe_pool_entry * spill[MOE_POOL_TODO];
++        for (int i = 0; i < moe_pool.ntodo; ++i) {
++            if (moe_pool.qt - moe_pool.qh < 1000) { moe_pool.todo[i]->queued = 1; moe_pool.q[moe_pool.qt++ % 1024] = moe_pool.todo[i]; } else { spill[inline_n++] = moe_pool.todo[i]; }
++        }
++        pthread_cond_broadcast(&moe_pool.cv); pthread_mutex_unlock(&moe_pool.mu);
++        for (int i = 0; i < inline_n; ++i) { moe_pool_read_entry(spill[i]); __atomic_store_n(&spill[i]->ready, 1, __ATOMIC_RELEASE); }   // queue full: read here
++    }
++    moe_pool.active = 1; return 1;
++}
++// sync mode, all threads, after a barrier: read the missing experts (each thread takes every nth)
++static void moe_pool_load(const struct ggml_tensor * src0, int ith, int nth) {
++    (void) src0;
++    for (int i = ith; i < moe_pool.ntodo; i += nth) { moe_pool_read_entry(moe_pool.todo[i]); __atomic_store_n(&moe_pool.todo[i]->ready, 1, __ATOMIC_RELEASE); }
++}
++static const char * moe_pool_ptr(const struct ggml_tensor * src0, int expert) {
++    if (!moe_pool.active) return NULL;
++    (void) src0; const int t = moe_pool.cur_t;
++    for (int k = 0; k < moe_pool.ncur; ++k) {
++        moe_pool_entry * x = moe_pool.cur[k];
++        if (x->tensor == t && x->expert == expert) {
++            if (!__atomic_load_n(&x->ready, __ATOMIC_ACQUIRE)) {
++                __atomic_add_fetch(&moe_pool.stalls, 1, __ATOMIC_RELAXED);
++                while (!__atomic_load_n(&x->ready, __ATOMIC_ACQUIRE)) sched_yield();
++            }
++            return (const char *) x->ptr;
++        }
++    }
++    return NULL;
++}
++#else
++static struct { int active; int async; int ncur; int order[1]; } moe_pool;
++static int moe_pool_prepare(const struct ggml_tensor * a, const struct ggml_tensor * b) { (void) a; (void) b; return 0; }
++static void moe_pool_load(const struct ggml_tensor * a, int i, int n) { (void) a; (void) i; (void) n; }
++static const char * moe_pool_ptr(const struct ggml_tensor * a, int e) { (void) a; (void) e; return NULL; }
++#endif
++
+ static void ggml_compute_forward_mul_mat_id_one_chunk(
+     struct ggml_tensor * dst,
+     const struct ggml_tensor * src0,
+@@ -1551,6 +1778,182 @@ static void * incr_ptr_aligned(void ** p, size_t size, size_t align) {
+     return ptr;
+ }
+ 
++#if !defined(_WIN32)
++#include <sys/mman.h>
++#include <unistd.h>
++#endif
++
++// Expert prefetch (experiment). With GGML_MOE_PREFETCH=1, the experts the router picked for this op are asked for as whole byte ranges
++// (madvise WILLNEED) before any of them is touched, so the kernel reads each expert in large pieces with many requests in flight instead of
++// faulting 4-128 KiB at a time at queue depth 1. A no-op for data that is not file-backed.
++static int ggml_moe_prefetch_mode(void) {
++    static int mode = -1;
++    if (mode < 0) {
++        const char * e = getenv("GGML_MOE_PREFETCH");
++        mode = e ? atoi(e) : 0;
++    }
++    return mode;
++}
++
++static void ggml_moe_prefetch(const struct ggml_tensor * src0, const struct ggml_tensor * ids) {
++#if !defined(_WIN32)
++    const int64_t n_as = src0->ne[2];
++    const size_t  page = (size_t) sysconf(_SC_PAGESIZE);
++    uint8_t * seen = (uint8_t *) alloca((size_t) n_as);
++    memset(seen, 0, (size_t) n_as);
++    for (int64_t iid1 = 0; iid1 < ids->ne[1]; ++iid1) {
++        for (int64_t id = 0; id < ids->ne[0]; ++id) {
++            const int32_t i02 = *(const int32_t *) ((const char *) ids->data + iid1*ids->nb[1] + id*ids->nb[0]);
++            if (i02 < 0 || i02 >= n_as || seen[i02]) {
++                continue;
++            }
++            seen[i02] = 1;
++            uintptr_t a = (uintptr_t) src0->data + (size_t) i02 * src0->nb[2];
++            uintptr_t b = a + src0->nb[2];
++            a &= ~(uintptr_t)(page - 1);
++            b = (b + page - 1) & ~(uintptr_t)(page - 1);
++            madvise((void *) a, (size_t)(b - a), MADV_WILLNEED);
++        }
++    }
++#else
++    GGML_UNUSED(src0); GGML_UNUSED(ids);
++#endif
++}
++
++// Mode 2: every compute thread touches its share of the chosen experts' pages before the matmul, so the page faults are issued
++// from nth threads at once (queue depth nth) instead of one at a time as the matmul walks the rows.
++static void ggml_moe_prefetch_touch(const struct ggml_tensor * src0, const struct ggml_tensor * ids, int ith, int nth) {
++#if !defined(_WIN32)
++    const int64_t n_as = src0->ne[2];
++    const size_t  page = (size_t) sysconf(_SC_PAGESIZE);
++    uint8_t * seen = (uint8_t *) alloca((size_t) n_as);
++    memset(seen, 0, (size_t) n_as);
++    volatile char sink = 0;
++    size_t k = 0;
++    for (int64_t iid1 = 0; iid1 < ids->ne[1]; ++iid1) {
++        for (int64_t id = 0; id < ids->ne[0]; ++id) {
++            const int32_t i02 = *(const int32_t *) ((const char *) ids->data + iid1*ids->nb[1] + id*ids->nb[0]);
++            if (i02 < 0 || i02 >= n_as || seen[i02]) {
++                continue;
++            }
++            seen[i02] = 1;
++            const char * base = (const char *) src0->data + (size_t) i02 * src0->nb[2];
++            for (size_t off = 0; off < src0->nb[2]; off += page, ++k) {
++                if ((int)(k % (size_t) nth) == ith) {
++                    sink += base[off];
++                }
++            }
++        }
++    }
++    (void) sink;
++#else
++    GGML_UNUSED(src0); GGML_UNUSED(ids); GGML_UNUSED(ith); GGML_UNUSED(nth);
++#endif
++}
++
++// Expert trace (measurement only): with GGML_MOE_TRACE=<file>, every single-token decode step appends one line per layer, "<tensor name> id id ...",
++// for the ffn_down_exps tensors (one op per layer per token). Used to measure how much routing repeats from one token to the next.
++static void ggml_moe_trace(const struct ggml_tensor * src0, const struct ggml_tensor * ids) {
++    static FILE * f = NULL;
++    static int init = 0;
++    if (!init) {
++        init = 1;
++        const char * path = getenv("GGML_MOE_TRACE");
++        if (path) { f = fopen(path, "a"); }
++    }
++    static FILE * fp = NULL;
++    static int initp = 0;
++    if (!initp) {
++        initp = 1;
++        const char * ppath = getenv("GGML_MOE_TRACE_PREFILL");
++        if (ppath) { fp = fopen(ppath, "a"); }
++    }
++    if (fp && ids->ne[1] > 1 && strstr(src0->name, "ffn_down_exps")) {
++        // prefill batch: one line per layer, "P <tensor name> <n_tokens> <unique experts> <sorted unique ids...>"
++        static unsigned char seen[4096];
++        const int64_t ne = ids->ne[0], nt = ids->ne[1];
++        memset(seen, 0, sizeof(seen));
++        int uniq = 0;
++        for (int64_t t = 0; t < nt; ++t) {
++            for (int64_t id = 0; id < ne; ++id) {
++                const int32_t e = *(const int32_t *) ((const char *) ids->data + id*ids->nb[0] + t*ids->nb[1]);
++                if (e >= 0 && e < 4096 && !seen[e]) { seen[e] = 1; uniq++; }
++            }
++        }
++        fprintf(fp, "P %s %d %d", src0->name, (int) nt, uniq);
++        for (int e = 0; e < 4096; ++e) { if (seen[e]) { fprintf(fp, " %d", e); } }
++        fprintf(fp, "\n");
++        fflush(fp);
++    }
++    if (!f || ids->ne[1] != 1 || !strstr(src0->name, "ffn_down_exps")) {
++        return;
++    }
++    fprintf(f, "%s", src0->name);
++    for (int64_t id = 0; id < ids->ne[0]; ++id) {
++        fprintf(f, " %d", *(const int32_t *) ((const char *) ids->data + id*ids->nb[0]));
++    }
++    fprintf(f, "\n");
++    fflush(f);
++}
++
++// Hot-set pinning (experiment): GGML_MOE_PIN=<file> with lines "<layer> <expert>". The first time a layer's expert tensor runs, the byte range of every
++// listed expert inside the mmap is mlock'ed, so those pages are read once and then stay resident. GGML_MOE_PIN_LOG=1 prints what was pinned.
++#define MOE_PIN_MAX_L 128
++#define MOE_PIN_MAX_E 1024
++static unsigned char moe_pin_set[MOE_PIN_MAX_L][MOE_PIN_MAX_E];
++static const void *  moe_pin_done[1024];
++static int           moe_pin_ndone = 0;
++static int           moe_pin_state = -1;   // -1 not read yet, 0 disabled, 1 enabled
++static size_t        moe_pin_bytes = 0;
++static int           moe_pin_fail  = 0;
++
++static void ggml_moe_pin_apply(const struct ggml_tensor * src0) {
++#if !defined(_WIN32)
++    if (moe_pin_state < 0) {
++        moe_pin_state = 0;
++        const char * path = getenv("GGML_MOE_PIN");
++        FILE * f = path ? fopen(path, "r") : NULL;
++        if (f) {
++            int l, e;
++            while (fscanf(f, "%d %d", &l, &e) == 2) {
++                if (l >= 0 && l < MOE_PIN_MAX_L && e >= 0 && e < MOE_PIN_MAX_E) { moe_pin_set[l][e] = 1; moe_pin_state = 1; }
++            }
++            fclose(f);
++        }
++    }
++    if (moe_pin_state != 1 || !strstr(src0->name, "_exps")) {
++        return;
++    }
++    for (int i = 0; i < moe_pin_ndone; ++i) {
++        if (moe_pin_done[i] == src0->data) { return; }
++    }
++    int layer = -1;
++    if (sscanf(src0->name, "blk.%d.", &layer) != 1 || layer < 0 || layer >= MOE_PIN_MAX_L || moe_pin_ndone >= 1024) {
++        return;
++    }
++    moe_pin_done[moe_pin_ndone++] = src0->data;
++    const size_t page = (size_t) sysconf(_SC_PAGESIZE);
++    const int64_t n_as = src0->ne[2];
++    int64_t e = 0;
++    while (e < n_as) {
++        if (e >= MOE_PIN_MAX_E || !moe_pin_set[layer][e]) { ++e; continue; }
++        int64_t e2 = e;                                        // coalesce a run of consecutive pinned experts into one mlock
++        while (e2 + 1 < n_as && e2 + 1 < MOE_PIN_MAX_E && moe_pin_set[layer][e2 + 1]) { ++e2; }
++        uintptr_t a = (uintptr_t) src0->data + (size_t) e * src0->nb[2];
++        uintptr_t b = (uintptr_t) src0->data + (size_t)(e2 + 1) * src0->nb[2];
++        a &= ~(uintptr_t)(page - 1);
++        b = (b + page - 1) & ~(uintptr_t)(page - 1);
++        if (mlock((void *) a, (size_t)(b - a)) == 0) { moe_pin_bytes += (size_t)(b - a); } else { moe_pin_fail++; }
++        e = e2 + 1;
++    }
++    if (getenv("GGML_MOE_PIN_LOG") && layer == 47) {
++        fprintf(stderr, "moe-pin: %.1f MiB locked so far, %d mlock failures\n", moe_pin_bytes / 1048576.0, moe_pin_fail);
++    }
++#else
++    GGML_UNUSED(src0);
++#endif
++}
++
+ static void ggml_compute_forward_mul_mat_id(
+         const struct ggml_compute_params * params,
+               struct ggml_tensor * dst) {
+@@ -1585,6 +1988,22 @@ static void ggml_compute_forward_mul_mat_id(
+     const int n_ids = ids->ne[0]; // n_expert_used
+     const int n_as  = ne02;       // n_expert
+ 
++    if (ith == 0) {
++        ggml_moe_trace(src0, ids);
++    }
++    if (ith == 0) {
++        ggml_moe_pin_apply(src0);
++    }
++    if (ggml_moe_prefetch_mode() == 1 && ith == 0) {
++        ggml_moe_prefetch(src0, ids);
++    } else if (ggml_moe_prefetch_mode() == 2) {
++        ggml_moe_prefetch_touch(src0, ids, ith, nth);
++    }
++
++    if (ith == 0) {
++        moe_pool_prepare(src0, ids);
++    }
++
+     void * wdata_cur = params->wdata;
+ 
+     if (src1->type != vec_dot_type) {
+@@ -1668,19 +2087,28 @@ static void ggml_compute_forward_mul_mat_id(
+ 
+     ggml_barrier(params->threadpool);
+ 
+-    for (int cur_a = 0; cur_a < n_as; ++cur_a) {
++    if (moe_pool.active && !moe_pool.async) {
++        moe_pool_load(src0, ith, nth);
++        ggml_barrier(params->threadpool);
++    }
++
++    const bool pool_ordered = moe_pool.active && moe_pool.async;   // resident experts first, then the ones still being read
++    const int n_iter = pool_ordered ? moe_pool.ncur : n_as;
++    for (int oi = 0; oi < n_iter; ++oi) {
++        const int cur_a = pool_ordered ? moe_pool.order[oi] : oi;
+         const int64_t cne1 = matrix_row_counts[cur_a];
+ 
+         if (cne1 == 0) {
+             continue;
+         }
+ 
+-        // tiled takes over if profitable for this expert (see tiled.h)
+-        if (ggml_compute_forward_mul_mat_id_tiled(params, dst, cur_a, cne1, (const int32_t *) &MMID_MATRIX_ROW(cur_a, 0), tiled_scratch)) {
++        // tiled takes over if profitable for this expert (see tiled.h); not with the read pool, which serves the expert from its own buffer
++        if (!moe_pool.active && ggml_compute_forward_mul_mat_id_tiled(params, dst, cur_a, cne1, (const int32_t *) &MMID_MATRIX_ROW(cur_a, 0), tiled_scratch)) {
+             continue;
+         }
+ 
+-        const char * src0_cur = (const char *) src0->data + cur_a * nb02;
++        const char * src0_pool = moe_pool.active ? moe_pool_ptr(src0, cur_a) : NULL;
++        const char * src0_cur = src0_pool ? src0_pool : (const char *) src0->data + cur_a * nb02;
+         const void * wdata = (src1->type == vec_dot_type) ? src1->data : params->wdata;
+         const size_t row_size = ggml_row_size(vec_dot_type, ne10);
+ 

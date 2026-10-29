@@ -70,26 +70,84 @@ if [ ! -f "$FILE" ]; then
   else curl -fL -C - --retry 5 --retry-delay 5 -o "$FILE.part" "https://huggingface.co/$REPO/resolve/main/$FILE" >>"$LOG" 2>&1 && mv "$FILE.part" "$FILE"; fi
   [ -f "$FILE" ] || { say "download failed"; exit 5; }
 fi
-SIZE=$(stat -c %s "$FILE"); say "model: $FILE $(python3 -c "print(round($SIZE/1e9,2))") GB"
+SIZE=$(stat -c %s "$FILE")
+REMOTE=$(curl -sIL -m 20 "https://huggingface.co/$REPO/resolve/main/$FILE" 2>/dev/null | awk 'tolower($1)=="content-length:"{v=$2} END{gsub(/\r/,"",v);print v}')
+if [ -n "$REMOTE" ] && [ "$REMOTE" != "$SIZE" ]; then say "abort: $FILE is $SIZE bytes but the server says $REMOTE (truncated download?). Delete it and rerun to resume."; exit 5; fi
+say "model: $FILE $(python3 -c "print(round($SIZE/1e9,2))") GB"
 
-# ------------------------------------------------------------------ 5. disk speed (gate G5)
+# ------------------------------------------------------------------ 5. disk speed (cache-bypassing, no fio needed)
+cat > "$WORK/disk_bench.py" <<'DISKPY'
+#!/usr/bin/env python3
+"""Cache-bypassing read benchmark for a large file; works on macOS (F_NOCACHE) and Linux (O_DIRECT). No fio needed.
+
+usage: disk_bench.py FILE [--seconds 10] [--block-kib 1024]
+Prints one JSON line: {"seq_mib_s": .., "rand_mib_s": .., "block_kib": .., "method": ..}
+Sequential: reads blocks from a random start. Random: reads block-aligned blocks at random offsets. The file should be larger than RAM,
+and the numbers are only as cold as the bypass is: if the filesystem ignores the hint, a second pass over the same blocks would be cached,
+so each pass here starts at a fresh random region and never rereads a block.
+"""
+import argparse, json, mmap, os, random, sys, time
+
+ap = argparse.ArgumentParser()
+ap.add_argument("file"); ap.add_argument("--seconds", type=float, default=10); ap.add_argument("--block-kib", type=int, default=1024, help="read size; 4096-byte multiples (O_DIRECT needs alignment)")
+a = ap.parse_args()
+BLK = a.block_kib * 1024
+size = os.path.getsize(a.file)
+if size < 8 * BLK:
+    sys.exit("file too small for a read benchmark")
+
+if sys.platform == "darwin":
+    import fcntl
+    fd = os.open(a.file, os.O_RDONLY)
+    fcntl.fcntl(fd, 48, 1)                      # F_NOCACHE
+    method = "F_NOCACHE"
+else:
+    fd = os.open(a.file, os.O_RDONLY | getattr(os, "O_DIRECT", 0))
+    method = "O_DIRECT"
+buf = mmap.mmap(-1, BLK)                          # page-aligned, as O_DIRECT needs
+nblk = size // BLK
+
+
+def run(offsets):
+    n, t0 = 0, time.time()
+    for off in offsets:
+        if time.time() - t0 >= a.seconds:
+            break
+        got = os.preadv(fd, [buf], off)
+        if got <= 0:
+            break
+        n += got
+    return n / 2**20 / max(time.time() - t0, 1e-9)
+
+
+rng = random.Random(1234)
+start = rng.randrange(0, max(1, nblk - 1))
+seq = run(((start + i) % nblk) * BLK for i in range(nblk))
+order = list(range(nblk)); rng.shuffle(order)
+rnd = run(b * BLK for b in order)
+print(json.dumps({"seq_mib_s": round(seq), "rand_mib_s": round(rnd), "block_kib": a.block_kib, "method": method}))
+DISKPY
 DISK_JSON="null"
-if command -v fio >/dev/null; then
-  say "disk: sequential 1 MiB read, then random 1 MiB read (direct I/O, 20 s each) on the model file"
-  sync; [ "$(id -u)" = 0 ] && echo 3 > /proc/sys/vm/drop_caches 2>/dev/null
-  SEQ=$(fio --name=seq --filename="$FILE" --rw=read --bs=1M --iodepth=8 --direct=1 --runtime=20 --time_based --readonly --output-format=json 2>/dev/null | sed -n '/^{/,$p' | python3 -c "import sys,json;print(round(json.load(sys.stdin)['jobs'][0]['read']['bw']/1024))" 2>/dev/null)
-  RND=$(fio --name=rnd --filename="$FILE" --rw=randread --bs=1M --iodepth=8 --direct=1 --runtime=20 --time_based --readonly --output-format=json 2>/dev/null | sed -n '/^{/,$p' | python3 -c "import sys,json;print(round(json.load(sys.stdin)['jobs'][0]['read']['bw']/1024))" 2>/dev/null)
-  say "disk: sequential ${SEQ:-?} MiB/s, random 1 MiB ${RND:-?} MiB/s"; DISK_JSON="{\"seq_mib_s\":${SEQ:-null},\"rand1m_mib_s\":${RND:-null}}"
-else skip "fio not available, disk speed not measured"; fi
+say "disk: cache-bypassing reads on the model file at 128 KiB, 1 MiB and 4 MiB (the read size decides the speed), 6 s per pass"
+DJ=""
+for K in 128 1024 4096; do
+  R=$(python3 -I "$WORK/disk_bench.py" "$FILE" --seconds 6 --block-kib $K 2>>"$LOG") && DJ="$DJ${DJ:+,}\"$K\":$R"
+done
+if [ -n "$DJ" ]; then DISK_JSON="{$DJ}"; say "disk: $DJ"; else skip "disk benchmark failed (see log)"; fi
 
 # ------------------------------------------------------------------ 6. cap the usable RAM
-BALLAST_PID=""
+BALLAST_PID=""; CAP_LABEL="UNCAPPED"; EFF_CACHE_GB=null
+avail_gb() { awk '/MemAvailable/{printf "%.2f", $2/1048576}' /proc/meminfo; }
 cap_ram() {
-  local total_gb=$1 want=$2 extra
-  extra=$(python3 -c "print(max(0, int(($total_gb - $want) * 1024)))")
-  if [ "$extra" -le 0 ]; then say "RAM cap: machine has $total_gb GB <= $want GB, no ballast needed"; return; fi
-  # a process that holds ${extra} MiB of anonymous, touched (and locked if allowed) memory: the page cache then has only ${want} GB to work with
-  python3 - "$extra" <<'PY' &
+  local want=$1 avail extra
+  sync; [ "$(id -u)" = 0 ] && echo 3 > /proc/sys/vm/drop_caches 2>/dev/null
+  avail=$(avail_gb)
+  # sized from what is AVAILABLE now (free + reclaimable cache), not from total RAM: sizing from total left the cache larger than the target
+  extra=$(python3 -c "print(max(0, int(($avail - $want) * 1024)))")
+  if [ "$extra" -le 0 ]; then say "RAM cap: only $avail GB available <= $want GB, no ballast needed"; CAP_LABEL="NATURAL"; EFF_CACHE_GB=$avail; return; fi
+  # hold `extra` MiB, check what is left, and resize once if the first attempt missed the target by more than 10%
+  for attempt in 1 2; do
+    python3 - "$extra" <<'PY' &
 import sys, mmap, ctypes, time
 n = int(sys.argv[1]) * 1024 * 1024
 buf = mmap.mmap(-1, n)
@@ -99,7 +157,17 @@ except Exception: pass
 print("ballast ready", flush=True)
 time.sleep(10**6)
 PY
-  BALLAST_PID=$!; sleep 5; say "RAM cap: ballast of ${extra} MiB held by pid $BALLAST_PID (MemAvailable now $(awk '/MemAvailable/{printf "%.1f GB", $2/1048576}' /proc/meminfo))"
+    BALLAST_PID=$!; sleep 6
+    EFF_CACHE_GB=$(avail_gb)
+    if python3 -c "import sys;sys.exit(0 if abs($EFF_CACHE_GB - $want) <= 0.10 * $want else 1)"; then CAP_LABEL="MEASURED-CAP"; break; fi
+    CAP_LABEL="SOFT-CAP"
+    [ "$attempt" = 2 ] && break
+    kill "$BALLAST_PID" 2>/dev/null; wait "$BALLAST_PID" 2>/dev/null; sleep 2
+    extra=$(python3 -c "print(max(0, int($extra - ($want - $EFF_CACHE_GB) * 1024)))")     # available was too low -> hold less; too high -> hold more
+    [ "$extra" -gt 0 ] || break
+    say "RAM cap: attempt 1 left $EFF_CACHE_GB GB available against $want GB; retrying with ${extra} MiB"
+  done
+  say "RAM cap: ballast ${extra} MiB, available now $EFF_CACHE_GB GB against a target of $want GB -> $CAP_LABEL"
 }
 trap '[ -n "$BALLAST_PID" ] && kill "$BALLAST_PID" 2>/dev/null' EXIT
 
@@ -113,13 +181,13 @@ run_case() {   # name, extra flags, drop-cache?
     m0=$(vm pgmajfault); p0=$(vm pgpgin); t0=$(date +%s.%N)
     "$BIN/llama-bench" -m "$FILE" -ngl 0 -t "$CORES" -p 0 -n "$TOK" -r 1 --repack 0 -o json $flags > "$out.$r" 2>>"$LOG" || { say "case $name rep $r failed"; continue; }
     t1=$(date +%s.%N); m1=$(vm pgmajfault); p1=$(vm pgpgin)
-    python3 - "$out.$r" "$m0" "$m1" "$p0" "$p1" "$t0" "$t1" "$TOK" "$r" >> "$out" <<'PY'
+    python3 - "$out.$r" "$m0" "$m1" "$p0" "$p1" "$t0" "$t1" "$((TOK + 1))" "$r" >> "$out" <<'PY'
 import sys, json
 f, m0, m1, p0, p1, t0, t1, tok, r = sys.argv[1:]
 d = json.load(open(f)); row = d[-1] if isinstance(d, list) else d
 tps = row.get("avg_ts") or row.get("tokens_per_second") or 0
-print(json.dumps({"rep": int(r), "tok_s": tps, "major_faults": int(m1) - int(m0), "faults_per_token": (int(m1) - int(m0)) / int(tok),
-                  "read_mib": (int(p1) - int(p0)) / 1024, "wall_s": float(t1) - float(t0)}))
+print(json.dumps({"rep": int(r), "tok_s": tps, "tokens_counted": int(tok), "major_faults": int(m1) - int(m0), "faults_per_token": (int(m1) - int(m0)) / int(tok),
+                  "read_mib": (int(p1) - int(p0)) / 1024, "read_mib_per_token": (int(p1) - int(p0)) / 1024 / int(tok), "wall_s": float(t1) - float(t0)}))
 PY
   done
   python3 - "$out" "$name" <<'PY'
@@ -128,11 +196,11 @@ rows = [json.loads(l) for l in open(sys.argv[1]) if l.startswith("{")]
 if not rows: print(json.dumps({"case": sys.argv[2], "status": "no successful run"})); sys.exit()
 t = [r["tok_s"] for r in rows]
 print(json.dumps({"case": sys.argv[2], "status": "ok", "tok_s_median": st.median(t), "tok_s_all": t,
-                  "faults_per_token_median": st.median([r["faults_per_token"] for r in rows]), "read_mib_median": st.median([r["read_mib"] for r in rows])}))
+                  "tokens_counted": rows[0]["tokens_counted"], "faults_per_token_median": st.median([r["faults_per_token"] for r in rows]), "read_mib_median": st.median([r["read_mib"] for r in rows]), "read_mib_per_token_median": st.median([r["read_mib_per_token"] for r in rows])}))
 PY
 }
 
-cap_ram "$MEM_GB" "$RAM_GB"
+cap_ram "$RAM_GB"
 RES=()
 say "case 1/2: B_mmap  (-lm mmap, file-backed pages, swap OFF)"
 [ "$SWAP_TEST" = 1 ] && swapoff -a 2>/dev/null; RES+=("$(run_case mmap "-lm mmap")")
@@ -149,13 +217,13 @@ elif [ "$SW_OK" = 1 ]; then sysctl -w vm.swappiness=60 >/dev/null 2>&1; RES+=("$
 else skip "B_swap: could not create/enable a swap file (needs root and a kernel that allows swapon; many notebook containers do not)"; fi
 
 # ------------------------------------------------------------------ 7. result
-python3 - "$RESULT" "$ACTIVE_B" "$CORES" "$MEM_GB" "$RAM_GB" "$DISK_JSON" "$COMMIT" "$FILE" "$CPU_MODEL" "$ARCH" "${RES[@]}" -- "${SKIPS[@]:-}" <<'PY'
+python3 - "$RESULT" "$ACTIVE_B" "$CORES" "$MEM_GB" "$RAM_GB" "$DISK_JSON" "$COMMIT" "$FILE" "$CPU_MODEL" "$ARCH" "$CAP_LABEL" "$EFF_CACHE_GB" "$OS" "${RES[@]}" -- "${SKIPS[@]:-}" <<'PY'
 import sys, json
-out, active, cores, mem, cap, disk, commit, model, cpu, arch = sys.argv[1:11]
-rest = sys.argv[11:]; i = rest.index("--"); cases = [json.loads(x) for x in rest[:i]]; skips = [s for s in rest[i + 1:] if s]
+out, active, cores, mem, cap, disk, commit, model, cpu, arch, cap_label, eff, osname = sys.argv[1:14]
+rest = sys.argv[14:]; i = rest.index("--"); cases = [json.loads(x) for x in rest[:i]]; skips = [s for s in rest[i + 1:] if s]
 for c in cases:
     if c.get("status") == "ok": c["effective_gflops"] = round(c["tok_s_median"] * 2 * float(active), 1)   # tok/s x 2 FLOP x active params (an upper-bound style estimate)
-res = {"machine": {"cpu": cpu, "arch": arch, "physical_cores": int(cores), "ram_gb": float(mem), "ram_cap_gb": float(cap)}, "llama_cpp": commit, "model": model,
+res = {"schema": 2, "os": osname, "machine": {"cpu": cpu, "arch": arch, "physical_cores": int(cores), "ram_gb": float(mem), "ram_cap_gb": float(cap), "cap_label": cap_label, "available_gb_after_cap": None if eff == "null" else float(eff)}, "llama_cpp": commit, "model": model,
        "disk": json.loads(disk), "cases": cases, "skipped": skips, "note": "faults_per_token and tok_s are measured; effective_gflops assumes the run is compute-bound"}
 json.dump(res, open(out, "w"), indent=1); print(json.dumps(res, indent=1))
 PY

@@ -1,0 +1,14 @@
+{
+ "machine": "MacBook Pro 16,2, Intel i7-1068NG7, 16 GB RAM, internal PCIe NVMe",
+ "tool": "tools/disk_bench.py (F_NOCACHE, queue depth 1, 5 s per pass, 14.25 GB file)",
+ "read_size_kib_to_mib_s": {
+  "16":   {"seq": 420,  "rand": 101},
+  "64":   {"seq": 533,  "rand": 278},
+  "128":  {"seq": 709,  "rand": 465},
+  "256":  {"seq": 941,  "rand": 785},
+  "1024": {"seq": 1514, "rand": 1562},
+  "4096": {"seq": 2446, "rand": 2380}
+ },
+ "compare": "mmap paging of the same file during decoding measured about 340 MB/s (217 GB paged in over about 640 s)",
+ "note": "the paging rate matches 64-128 KiB random reads; multi-MiB reads are 4.5-7x faster on this disk"
+}

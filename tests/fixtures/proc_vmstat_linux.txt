@@ -1,0 +1,7 @@
+nr_free_pages 123456
+pgpgin 987654
+pgpgout 4321
+pswpin 0
+pgfault 555555
+pgmajfault 3700
+pgmajfault_extra 1

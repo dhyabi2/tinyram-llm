@@ -1,0 +1,32 @@
+diff --git a/src/llama-context.cpp b/src/llama-context.cpp
+index 96b5464..46a3d31 100644
+--- a/src/llama-context.cpp
++++ b/src/llama-context.cpp
+@@ -1709,7 +1709,27 @@ static bool needs_raw_logits(const llama_ubatch & ubatch, const std::map<llama_s
+     return false; // all sequences use backend sampling
+ }
+ 
++// Phase timing (measurement only). With GGML_PHASE=1 every llama_context::decode() call prints one line to stderr:
++//   PHASE decode n_tokens=<N> start=<seconds> end=<seconds>
++// seconds come from a steady clock started at the first call, so a wrapper can split a run into prompt phase (the calls with n_tokens > 1) and
++// generation (n_tokens == 1) without guessing from log timing. Every llama.cpp tool reaches decoding through llama_process -> llama_context::decode.
++#include <chrono>
++#include <cstdio>
++#include <cstdlib>
++struct llama_phase_scope {
++    static bool enabled() { static const bool e = std::getenv("GGML_PHASE") != nullptr; return e; }
++    static double now() {
++        using clk = std::chrono::steady_clock;
++        static const clk::time_point t0 = clk::now();
++        return std::chrono::duration<double>(clk::now() - t0).count();
++    }
++    size_t n; double start;
++    explicit llama_phase_scope(size_t n_tokens) : n(n_tokens), start(enabled() ? now() : 0.0) {}
++    ~llama_phase_scope() { if (enabled()) { std::fprintf(stderr, "PHASE decode n_tokens=%zu start=%.6f end=%.6f\n", n, start, now()); } }
++};
++
+ int llama_context::decode(const llama_batch_ext & batch_inp) {
++    llama_phase_scope phase_scope(batch_inp.tokens.size());
+     if (!memory) {
+         LLAMA_LOG_DEBUG("%s: cannot decode batches with this context (calling encode() instead)\n", __func__);
+         return encode(batch_inp);

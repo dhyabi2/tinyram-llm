@@ -8,6 +8,7 @@ import itertools, math, multiprocessing as mp, statistics as st, sys, json
 
 # ---------------- measured / fixed ----------------
 LRU = {0.0: 0.0, 0.9: 0.000, 1.0: 0.306, 1.5: 0.454, 2.0: 0.549, 3.0: 0.686, 4.0: 0.793, 7.5: 0.950, 10: 0.962, 20.6: 0.962}   # [M] mean of 3 prompts, 30B traces, cold start included
+LRU_30B = dict(LRU)   # the 30B-trace curve, kept under its own name because COMBO_HIT=real below rebinds LRU
 # Alternative hit curve (COMBO_HIT=real): points read from public benchmarks on the 125B-class model itself (llama.cpp PR threads, single-user and unverified):
 # hit 0.72 / 0.77 / 0.89 at 13 / 16 / 28 % of the experts, and an offline per-layer LRU study 0.621 / 0.759 / 0.876 / 0.912 / 0.974 at 7.8 / 14 / 25 / 31 / 62.5 %.
 # 1 footprint = 480 of the 24,576 expert slices = 1.95 % of the experts, so k = fraction x 51.2. Points below k = 4 are NOT measured: the 30B curve is scaled by 0.78 (its ratio at k = 4).

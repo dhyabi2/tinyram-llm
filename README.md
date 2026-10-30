@@ -4,6 +4,24 @@ Tools and measurements for running large sparse mixture-of-experts (MoE) models 
 
 Everything here is something you can run and check yourself. Measured results come with their conditions; projections are labelled as projections.
 
+## Recommended command (all compatible techniques together)
+
+```bash
+python3 tools/moe_run.py --model MODEL.gguf --bin ./llama.cpp/build/bin --preset fast --adapt -- \
+    -p "Your prompt" -n 200 --prompt-cache prompt.bin
+```
+
+Why these arguments:
+
+- `--preset fast`: turns on the read pool with overlapped reads and 4 I/O threads (the launcher default on 4+ cores), routing that prefers experts already in memory (cache bias 1.0), and 6 of the 8 experts per token. On the test Mac (model about 8x the RAM available for it) this ran about 4-5 tok/s against about 0.45 for plain llama.cpp, for +3.5% (docs) to +5.3% (code) perplexity on Qwen3-30B-A3B.
+- `--preset safe` instead if the output must stay identical to the stock path: pool and overlap only, about 4-5x faster, no quality change.
+- `--preset fastest` (bias 3.0, 6 experts) was about 14x faster, but bias 3 cost +17% perplexity on OLMoE and +4.6% on Qwen3 code; check your model with a perplexity run first.
+- `--adapt`: sizes the read pool from the memory that is actually free. A fixed oversized pool collapsed to 0.2 tok/s when pool plus other memory exceeded free RAM; adaptive sizing kept about 1.4 tok/s.
+- `--prompt-cache prompt.bin`: passed through to llama.cpp. A repeated long prompt went from 63 s to 11 s (5.7x). The cached path can word the answer slightly differently.
+- Threads: the launcher uses physical cores. Using hyper-threads (8 threads on 4 cores) was 11x slower.
+- Not worth adding: the AVX512-VNNI kernel, dense-weight locking, layer skipping and static pins gave no gain in our tests. Prompt-lookup speculation helps copy-heavy tasks (1.6x) but needs the separate `llama-lookup` binary, so it cannot be combined in one command.
+- Not measured: the exact combination above (preset plus `--adapt` plus prompt cache) as one run; each part was measured separately. These are results on a Mac with memory squeezed to imitate a small-RAM PC, not on the 125B-class model.
+
 ## Quick start (any MoE GGUF)
 
 ```bash

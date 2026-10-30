@@ -3,7 +3,7 @@
 usage: python3 tests/run_all.py          (set TEST_CATALOG=file.jsonl to record every check by name)"""
 import importlib, os, sys, time
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
-SUITES = ["test_cachesim", "test_trace", "test_abstats", "test_results_check", "test_to_schema3", "test_pin", "test_mincore", "test_models", "test_disk_bench", "test_probe_parsers", "test_shell_preflight", "test_hygiene_data", "test_combo_trace", "test_native_and_tools", "test_pubtech_A", "test_pubtech_B", "test_pubtech_C", "test_pubtech_D", "test_pubtech_E", "test_pubtech_F", "test_gguf_offsets", "test_moe_run"]
+SUITES = ["test_cachesim", "test_trace", "test_abstats", "test_results_check", "test_to_schema3", "test_pin", "test_mincore", "test_models", "test_disk_bench", "test_probe_parsers", "test_shell_preflight", "test_hygiene_data", "test_combo_trace", "test_native_and_tools", "test_pubtech_A", "test_pubtech_B", "test_pubtech_C", "test_pubtech_D", "test_pubtech_E", "test_pubtech_F", "test_gguf_offsets", "test_moe_run", "test_v41_model"]
 tot = bad = 0; t0 = time.time(); rows = []
 for name in SUITES:
     s0 = time.time(); r = importlib.import_module(name).run(); tot += r.n; bad += len(r.bad); rows.append((r.suite, r.n, len(r.bad), time.time() - s0))

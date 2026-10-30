@@ -1,0 +1,117 @@
+diff --git a/src/llama-graph.cpp b/src/llama-graph.cpp
+index 16a3ed2..fefb24e 100644
+--- a/src/llama-graph.cpp
++++ b/src/llama-graph.cpp
+@@ -1,4 +1,5 @@
+ #include "llama-graph.h"
++#include <vector>
+ 
+ #include "llama-impl.h"
+ #include "llama-model.h"
+@@ -1964,6 +1965,23 @@ ggml_tensor * llm_graph_context::build_ffn(
+     return cur;
+ }
+ 
++
++// experiment: GGML_MOE_CACHE_BIAS=lambda multiplies the router probabilities used for expert SELECTION by (1 + lambda) for experts that are resident in the read pool
++// (single-token steps only); the mixing weights still come from the unmodified probabilities. Unset = no change.
++typedef int (*moe_pool_mask_fn_t)(int, int, unsigned char *);
++struct moe_bias_ud { int layer; float lambda; moe_pool_mask_fn_t fn; };
++static void moe_bias_op(struct ggml_tensor * dst, const struct ggml_tensor * a, int ith, int nth, void * ud_) {
++    (void) nth; if (ith != 0) return;
++    const moe_bias_ud * ud = (const moe_bias_ud *) ud_;
++    const int64_t ne = a->ne[0], nt = a->ne[1];
++    std::vector<unsigned char> mask(ne, 0);
++    const bool use = nt == 1 && ud->fn && ud->fn(ud->layer, (int) ne, mask.data());
++    for (int64_t t = 0; t < nt; ++t) {
++        const float * src = (const float *) ((const char *) a->data + t * a->nb[1]); float * out = (float *) ((char *) dst->data + t * dst->nb[1]);
++        for (int64_t e = 0; e < ne; ++e) out[e] = src[e] * ((use && mask[e]) ? (1.0f + ud->lambda) : 1.0f);
++    }
++}
++
+ ggml_tensor * llm_graph_context::build_moe_ffn(
+          ggml_tensor * cur,
+          ggml_tensor * gate_inp,
+@@ -2121,6 +2139,17 @@ ggml_tensor * llm_graph_context::build_moe_ffn(
+         cb(selection_probs, "ffn_moe_probs_masked", il);
+     }
+ 
++    {
++        static const float bias_lambda = getenv("GGML_MOE_CACHE_BIAS") ? (float) atof(getenv("GGML_MOE_CACHE_BIAS")) : 0.0f;
++        if (bias_lambda > 0.0f && selected_experts_in == nullptr && il >= 0 && il < 256) {
++            static moe_bias_ud uds[256]; static moe_pool_mask_fn_t fn = nullptr; static bool looked = false;
++            if (!looked) { looked = true; ggml_backend_reg_t reg = ggml_backend_reg_by_name("CPU"); if (reg) fn = (moe_pool_mask_fn_t) ggml_backend_reg_get_proc_address(reg, "ggml_cpu_moe_pool_mask"); }
++            uds[il] = { il, bias_lambda, fn };
++            selection_probs = ggml_map_custom1(ctx0, selection_probs, moe_bias_op, 1, &uds[il]);
++            cb(selection_probs, "ffn_moe_probs_cache_biased", il);
++        }
++    }
++
+     // select experts
+     ggml_tensor * selected_experts = selected_experts_in;
+     if (selected_experts == nullptr) {
+@@ -2169,6 +2198,20 @@ ggml_tensor * llm_graph_context::build_moe_ffn(
+         cb(weights, "ffn_moe_weights_scaled", il);
+     }
+ 
++    uint32_t anchored_used = 0;   // set when GGML_MOE_USE_K cuts the number of computed experts
++    // experiment: GGML_MOE_USE_K=k computes only the first k of the n_expert_used selected experts. The weights were normalised over ALL n_expert_used
++    // experts above, so with k < n_expert_used the kept weights sum to less than 1 (denominator anchored to the native top-k mass). GGML_MOE_USE_K only
++    // takes effect for single-token and batched decode alike; unset = no change.
++    {
++        static const int64_t use_k = getenv("GGML_MOE_USE_K") ? atoi(getenv("GGML_MOE_USE_K")) : 0;
++        if (use_k > 0 && use_k < n_expert_used && norm_w) {
++            selected_experts = ggml_view_2d(ctx0, selected_experts, use_k, n_tokens, selected_experts->nb[1], 0);
++            weights = ggml_cont(ctx0, ggml_view_3d(ctx0, weights, 1, use_k, n_tokens, weights->nb[1], weights->nb[2], 0));
++            n_expert_used = use_k; anchored_used = (uint32_t) use_k;
++            cb(weights, "ffn_moe_weights_anchored", il);
++        }
++    }
++
+     //call early so that topk-moe can be used
+     ggml_build_forward_expand(gf, weights);
+ 
+@@ -2350,7 +2393,7 @@ ggml_tensor * llm_graph_context::build_moe_ffn(
+     // Use per-layer n_expert_used to bound the graph even during warmup (avoids
+     // the large-add-nodes issue for uniform arches; for Puzzle the per-layer
+     // value is correct). ref: https://github.com/ggml-org/llama.cpp/pull/14753
+-    const uint32_t n_expert_used_il = hparams.n_expert_used(il);
++    const uint32_t n_expert_used_il = anchored_used ? anchored_used : hparams.n_expert_used(il);
+     for (uint32_t i = 0; i < n_expert_used_il; ++i) {
+         cur_experts[i] = ggml_view_2d(ctx0, experts, n_embd, n_tokens, experts->nb[2], i*experts->nb[1]);
+ 
+diff --git a/src/models/qwen3moe.cpp b/src/models/qwen3moe.cpp
+index a6a3381..8df1e6b 100644
+--- a/src/models/qwen3moe.cpp
++++ b/src/models/qwen3moe.cpp
+@@ -1,4 +1,6 @@
+ #include "models.h"
++#include <vector>
++#include <cstdlib>
+ 
+ void llama_model_qwen3moe::load_arch_hparams(llama_model_loader & ml) {
+     ml.get_key_or_arr(LLM_KV_EXPERT_FEED_FORWARD_LENGTH, hparams.n_ff_exp_arr, hparams.n_layer_all, false);
+@@ -77,8 +79,15 @@ llama_model_qwen3moe::graph::graph(const llama_model & model, const llm_graph_pa
+ 
+     ggml_tensor * inp_out_ids = build_inp_out_ids();
+ 
++    // experiment: GGML_SKIP_LAYERS="2,6,10" skips those layers completely (attention and MoE), GGML_SKIP_MOE="2,6,10" skips only their MoE block.
++    // The last layer is never skipped. Unset = no change.
++    auto parse_set = [&](const char * name) { std::vector<bool> v(n_layer, false); const char * e = getenv(name); if (!e) return v;
++        for (const char * c = e; *c; ) { char * end; long x = strtol(c, &end, 10); if (end == c) { ++c; continue; } if (x >= 0 && x < n_layer - 1) v[x] = true; c = end; } return v; };
++    static const std::vector<bool> skip_layer = parse_set("GGML_SKIP_LAYERS"), skip_moe = parse_set("GGML_SKIP_MOE");
++
+     for (int il = 0; il < n_layer; ++il) {
+         res->t_layer_inp[il] = inpL;
++        if (skip_layer.size() == (size_t) n_layer && skip_layer[il]) { continue; }
+ 
+         ggml_tensor * inpSA = inpL;
+ 
+@@ -126,6 +135,7 @@ llama_model_qwen3moe::graph::graph(const llama_model & model, const llm_graph_pa
+         }
+         ggml_tensor * ffn_inp = ggml_add(ctx0, cur, inpSA);
+         cb(ffn_inp, "ffn_inp", il);
++        if (skip_moe.size() == (size_t) n_layer && skip_moe[il]) { inpL = ffn_inp; continue; }
+ 
+         // MoE branch
+         cur = build_norm(ffn_inp,

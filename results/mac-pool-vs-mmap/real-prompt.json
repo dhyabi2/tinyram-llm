@@ -1,0 +1,475 @@
+{
+ "machine": "MacBook Pro 16,2 (2020), 4 cores, 16 GB; internal NVMe",
+ "model": "Qwen3-30B-A3B Q4_K_M",
+ "method": "llama-completion, real 25-token prompt, 48 tokens, greedy, 9 GB wired ballast, 3 interleaved rounds",
+ "real_prompt_sweep": {
+  "rows": [
+   {
+    "tok_s": 0.4725344384606839,
+    "runs": 47,
+    "prompt_ms": 32670.28,
+    "wall_s": 133.4,
+    "text_md5": "28e43bc1",
+    "pool": null,
+    "rc": 0,
+    "variant": "plain mmap, 8 experts",
+    "round": 1
+   },
+   {
+    "tok_s": 2.050141219834026,
+    "runs": 47,
+    "prompt_ms": 32338.95,
+    "wall_s": 56.7,
+    "text_md5": "28e43bc1",
+    "pool": [
+     "6771",
+     "23174",
+     "30994"
+    ],
+    "rc": 0,
+    "variant": "pool sync 1500MB, 8 experts",
+    "round": 1
+   },
+   {
+    "tok_s": 1.4960482045830004,
+    "runs": 47,
+    "prompt_ms": 31705.95,
+    "wall_s": 64.3,
+    "text_md5": "28e43bc1",
+    "pool": [
+     "6771",
+     "36112",
+     "54168"
+    ],
+    "rc": 0,
+    "variant": "pool+overlap 800MB, 8 experts",
+    "round": 1
+   },
+   {
+    "tok_s": 2.1971877866278215,
+    "runs": 47,
+    "prompt_ms": 33244.12,
+    "wall_s": 56.3,
+    "text_md5": "28e43bc1",
+    "pool": [
+     "6771",
+     "43837",
+     "30994"
+    ],
+    "rc": 0,
+    "variant": "pool+overlap 1500MB, 8 experts",
+    "round": 1
+   },
+   {
+    "tok_s": 0.25928881491495465,
+    "runs": 47,
+    "prompt_ms": 32143.99,
+    "wall_s": 215.6,
+    "text_md5": "28e43bc1",
+    "pool": [
+     "6771",
+     "47649",
+     "19557"
+    ],
+    "rc": 0,
+    "variant": "pool+overlap 3000MB, 8 experts",
+    "round": 1
+   },
+   {
+    "tok_s": 0.6718325347340994,
+    "runs": 47,
+    "prompt_ms": 27797.79,
+    "wall_s": 99.1,
+    "text_md5": "454726e4",
+    "pool": null,
+    "rc": 0,
+    "variant": "plain mmap, 6 experts",
+    "round": 1
+   },
+   {
+    "tok_s": 0.5171989560944305,
+    "runs": 47,
+    "prompt_ms": 31945.06,
+    "wall_s": 124.3,
+    "text_md5": "28e43bc1",
+    "pool": null,
+    "rc": 0,
+    "variant": "plain mmap, 8 experts",
+    "round": 2
+   },
+   {
+    "tok_s": 1.934392804388026,
+    "runs": 47,
+    "prompt_ms": 32529.48,
+    "wall_s": 58.2,
+    "text_md5": "28e43bc1",
+    "pool": [
+     "6771",
+     "23174",
+     "30994"
+    ],
+    "rc": 0,
+    "variant": "pool sync 1500MB, 8 experts",
+    "round": 2
+   },
+   {
+    "tok_s": 1.4866887582289803,
+    "runs": 47,
+    "prompt_ms": 33386.71,
+    "wall_s": 66.4,
+    "text_md5": "28e43bc1",
+    "pool": [
+     "6771",
+     "36112",
+     "54168"
+    ],
+    "rc": 0,
+    "variant": "pool+overlap 800MB, 8 experts",
+    "round": 2
+   },
+   {
+    "tok_s": 2.3854986047370925,
+    "runs": 47,
+    "prompt_ms": 32621.89,
+    "wall_s": 53.7,
+    "text_md5": "28e43bc1",
+    "pool": [
+     "6771",
+     "43837",
+     "30994"
+    ],
+    "rc": 0,
+    "variant": "pool+overlap 1500MB, 8 experts",
+    "round": 2
+   },
+   {
+    "tok_s": 0.22410908295040088,
+    "runs": 47,
+    "prompt_ms": 31683.37,
+    "wall_s": 243.4,
+    "text_md5": "28e43bc1",
+    "pool": [
+     "6771",
+     "47649",
+     "19557"
+    ],
+    "rc": 0,
+    "variant": "pool+overlap 3000MB, 8 experts",
+    "round": 2
+   },
+   {
+    "tok_s": 0.6588809369903749,
+    "runs": 47,
+    "prompt_ms": 30833.82,
+    "wall_s": 103.6,
+    "text_md5": "454726e4",
+    "pool": null,
+    "rc": 0,
+    "variant": "plain mmap, 6 experts",
+    "round": 2
+   },
+   {
+    "tok_s": 0.3629306075134049,
+    "runs": 47,
+    "prompt_ms": 32069.86,
+    "wall_s": 163.0,
+    "text_md5": "28e43bc1",
+    "pool": null,
+    "rc": 0,
+    "variant": "plain mmap, 8 experts",
+    "round": 3
+   },
+   {
+    "tok_s": 1.9484999038187283,
+    "runs": 47,
+    "prompt_ms": 31727.81,
+    "wall_s": 57.2,
+    "text_md5": "28e43bc1",
+    "pool": [
+     "6771",
+     "23174",
+     "30994"
+    ],
+    "rc": 0,
+    "variant": "pool sync 1500MB, 8 experts",
+    "round": 3
+   },
+   {
+    "tok_s": 1.5217014046275263,
+    "runs": 47,
+    "prompt_ms": 31420.56,
+    "wall_s": 63.6,
+    "text_md5": "28e43bc1",
+    "pool": [
+     "6771",
+     "36112",
+     "54168"
+    ],
+    "rc": 0,
+    "variant": "pool+overlap 800MB, 8 experts",
+    "round": 3
+   },
+   {
+    "tok_s": 2.2166799981889254,
+    "runs": 47,
+    "prompt_ms": 33916.62,
+    "wall_s": 56.5,
+    "text_md5": "28e43bc1",
+    "pool": [
+     "6771",
+     "43837",
+     "30994"
+    ],
+    "rc": 0,
+    "variant": "pool+overlap 1500MB, 8 experts",
+    "round": 3
+   },
+   {
+    "tok_s": 0.29148658842298375,
+    "runs": 47,
+    "prompt_ms": 30968.96,
+    "wall_s": 194.3,
+    "text_md5": "28e43bc1",
+    "pool": [
+     "6771",
+     "47649",
+     "19557"
+    ],
+    "rc": 0,
+    "variant": "pool+overlap 3000MB, 8 experts",
+    "round": 3
+   },
+   {
+    "tok_s": 0.606226096795218,
+    "runs": 47,
+    "prompt_ms": 27586.79,
+    "wall_s": 106.6,
+    "text_md5": "454726e4",
+    "pool": null,
+    "rc": 0,
+    "variant": "plain mmap, 6 experts",
+    "round": 3
+   }
+  ],
+  "summary": {
+   "plain mmap, 8 experts": {
+    "median": 0.473,
+    "values": [
+     0.473,
+     0.517,
+     0.363
+    ]
+   },
+   "pool sync 1500MB, 8 experts": {
+    "median": 1.948,
+    "values": [
+     2.05,
+     1.934,
+     1.948
+    ]
+   },
+   "pool+overlap 800MB, 8 experts": {
+    "median": 1.496,
+    "values": [
+     1.496,
+     1.487,
+     1.522
+    ]
+   },
+   "pool+overlap 1500MB, 8 experts": {
+    "median": 2.217,
+    "values": [
+     2.197,
+     2.385,
+     2.217
+    ]
+   },
+   "pool+overlap 3000MB, 8 experts": {
+    "median": 0.259,
+    "values": [
+     0.259,
+     0.224,
+     0.291
+    ]
+   },
+   "plain mmap, 6 experts": {
+    "median": 0.659,
+    "values": [
+     0.672,
+     0.659,
+     0.606
+    ]
+   }
+  },
+  "ballast_gb": 9.0,
+  "tokens": 48
+ },
+ "fewer_experts_run": {
+  "rows": [
+   {
+    "tok_s": 1.0802802200921549,
+    "runs": 47,
+    "prompt_ms": 39904.54,
+    "wall_s": 85.1,
+    "text_md5": "28e43bc1",
+    "pool": [
+     "6771",
+     "43837",
+     "30994"
+    ],
+    "rc": 0,
+    "variant": "pool+overlap, 8 experts",
+    "round": 1
+   },
+   {
+    "tok_s": 2.0438106022457565,
+    "runs": 47,
+    "prompt_ms": 27334.38,
+    "wall_s": 51.7,
+    "text_md5": "454726e4",
+    "pool": [
+     "6771",
+     "33655",
+     "20916"
+    ],
+    "rc": 0,
+    "variant": "pool+overlap, 6 experts",
+    "round": 1
+   },
+   {
+    "tok_s": 3.513692936131529,
+    "runs": 47,
+    "prompt_ms": 21613.87,
+    "wall_s": 36.3,
+    "text_md5": "ccb8a9ab",
+    "pool": [
+     "6771",
+     "22711",
+     "13114"
+    ],
+    "rc": 0,
+    "variant": "pool+overlap, 4 experts",
+    "round": 1
+   },
+   {
+    "tok_s": 1.821253642507285,
+    "runs": 47,
+    "prompt_ms": 36025.57,
+    "wall_s": 63.8,
+    "text_md5": "28e43bc1",
+    "pool": [
+     "6771",
+     "43837",
+     "30994"
+    ],
+    "rc": 0,
+    "variant": "pool+overlap, 8 experts",
+    "round": 2
+   },
+   {
+    "tok_s": 2.538637248722174,
+    "runs": 47,
+    "prompt_ms": 28260.24,
+    "wall_s": 48.6,
+    "text_md5": "454726e4",
+    "pool": [
+     "6771",
+     "33655",
+     "20916"
+    ],
+    "rc": 0,
+    "variant": "pool+overlap, 6 experts",
+    "round": 2
+   },
+   {
+    "tok_s": 3.3613180944044063,
+    "runs": 47,
+    "prompt_ms": 22365.31,
+    "wall_s": 38.3,
+    "text_md5": "ccb8a9ab",
+    "pool": [
+     "6771",
+     "22711",
+     "13114"
+    ],
+    "rc": 0,
+    "variant": "pool+overlap, 4 experts",
+    "round": 2
+   },
+   {
+    "tok_s": 1.4721511291555773,
+    "runs": 47,
+    "prompt_ms": 33702.99,
+    "wall_s": 67.5,
+    "text_md5": "28e43bc1",
+    "pool": [
+     "6771",
+     "43837",
+     "30994"
+    ],
+    "rc": 0,
+    "variant": "pool+overlap, 8 experts",
+    "round": 3
+   },
+   {
+    "tok_s": 2.9836401298327826,
+    "runs": 47,
+    "prompt_ms": 28569.69,
+    "wall_s": 45.8,
+    "text_md5": "454726e4",
+    "pool": [
+     "6771",
+     "33655",
+     "20916"
+    ],
+    "rc": 0,
+    "variant": "pool+overlap, 6 experts",
+    "round": 3
+   },
+   {
+    "tok_s": 3.6752516374418995,
+    "runs": 47,
+    "prompt_ms": 21483.33,
+    "wall_s": 35.8,
+    "text_md5": "ccb8a9ab",
+    "pool": [
+     "6771",
+     "22711",
+     "13114"
+    ],
+    "rc": 0,
+    "variant": "pool+overlap, 4 experts",
+    "round": 3
+   }
+  ],
+  "summary": {
+   "pool+overlap, 8 experts": {
+    "median": 1.472,
+    "values": [
+     1.08,
+     1.821,
+     1.472
+    ]
+   },
+   "pool+overlap, 6 experts": {
+    "median": 2.539,
+    "values": [
+     2.044,
+     2.539,
+     2.984
+    ]
+   },
+   "pool+overlap, 4 experts": {
+    "median": 3.514,
+    "values": [
+     3.514,
+     3.361,
+     3.675
+    ]
+   }
+  },
+  "ballast_gb": 9.0,
+  "tokens": 48
+ },
+ "note": "Output text identical across all 8-expert variants. llama-bench numbers in ../mac-pool-vs-mmap are higher because its synthetic decode reuses a small expert set."
+}

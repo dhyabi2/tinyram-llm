@@ -24,9 +24,32 @@ The pool (patch `patches/0001`) reads the experts the router picks with explicit
 | 2020 MacBook Pro, 4 cores, 16 GB, internal NVMe | Qwen3-30B-A3B Q4_K_M (18.6 GB) | 9 GB wired ballast, file about 8x the cache | 0.513 tok/s | 2.28 tok/s (4.4x) | 2.645 tok/s (5.2x) |
 | Linux VPS, 5.8 GB, throttled disk | same model | cold, 40 tokens | 0.177 tok/s | (madvise read-ahead on the chosen experts: 0.293 tok/s, 1.65x; wall time 702 -> 572 s) | - |
 
+Real prompt (not llama-bench's synthetic input), 48 tokens, 3 rounds, same Mac and ballast: plain mmap 0.473 tok/s, pool 1.95 (4.1x), pool + overlap 2.22 (4.7x); the llama-bench figures above are higher because its decode reuses a small expert set. A pool larger than the free memory is worse than plain mmap (3000 MB pool: 0.26 tok/s), so `moe_run.py` sizes it from available RAM. Using 6 instead of 8 experts: 2.54 tok/s with the pool (+4.7% perplexity), 4 experts 3.51 tok/s (+30.9%).
+
 Fair-baseline check on the same Mac (48 tokens, 3 rounds): plain mmap 0.599 tok/s; mmap with madvise read-ahead on the chosen experts 0.648 (1.08x, within noise); mmap with a parallel page touch 0.315 (worse); pool 2.22 (3.7x); pool + overlap 2.79 (4.7x). Read-ahead hints on the mmap path do not close the gap.
 
 Conditions: clean interleaved A/B (fully wired ballast, swap nearly empty), medians of 3 rounds of 16 tokens (Mac) and 5 rounds of 40 tokens with a null pair (VPS). Short runs start with a cold cache, so steady-state speed is probably higher for the pool. Raw rows: `results/mac-pool-vs-mmap/`, `results/vps-madvise-ab/`. Output is identical to the stock path (greedy text and perplexity) in the tests. Things measured that did not help: an AVX512-VNNI Q4_K kernel, locking the dense weights, lossless compression of expert bytes, cross-layer prefetch with simple predictors. Quality of using fewer experts per token (Qwen3-30B-A3B): 6 of 8 experts +4.7% perplexity, 4 of 8 +30.9%.
+
+## Fewer disk reads: routing that prefers cached experts (Qwen3-30B-A3B, 16 GB Mac, memory squeezed 8x)
+
+Patch `0003` adds two switches. `GGML_MOE_CACHE_BIAS=l` multiplies the router probabilities used to *choose* experts by (1+l) for experts already in the pool (mixing weights unchanged); `GGML_MOE_USE_K=k` computes only the first k of the 8 chosen experts, with the weights still normalised over all 8. Real prompt, pool + overlap, medians of 3 rounds:
+
+| Configuration | tok/s | vs pool alone | vs plain mmap (0.42) | perplexity vs baseline (docs / code) |
+|---|---|---|---|---|
+| pool + overlap, 8 experts | 2.17 | 1x | 5x | 0 / 0 |
+| + cache bias 1.0 | 2.95 | 1.35x | - | +0.07% / not run |
+| + cache bias 3.0 | 4.02 | 1.85x | - | +0.03% / +4.6% |
+| 6 experts (anchored) | 3.05 (160 tokens) | 1.5x | 7.3x | +3.3% / +5.3% |
+| 6 experts + bias 1.0 | 4.06 | 1.9x | 9.7x | +3.5% / +5.3% |
+| 6 experts + bias 3.0 | 5.84 | 2.7x | 14x | +2.0% / not run |
+
+On a second model geometry (OLMoE, 64 experts, top-8, pool above the cache cliff) the same switches give: plain mmap 2.1 tok/s, pool 5.3, pool + bias 1.0 9.0 (4.3x plain; perplexity +0.4% docs / +1.2% code), pool + bias 3.0 13.0 (6.2x; but +17% perplexity). Bias 1.0 is the safe default on both models.
+
+Across eight different prompt types the ordering held on every prompt: pool only 2.11 tok/s (median), bias 1.0 2.97, 6 experts + bias 1.0 4.28, 6 experts + bias 3.0 5.46. Prompt-lookup speculation (llama-lookup) adds 1.6x only when the output copies the prompt (editing tasks) and nothing on free generation.
+
+A 30-question check (arithmetic, facts, Python semantics; Qwen3 non-thinking chat format) scored 28/30 for the baseline, 6 experts + bias 1.0, 6 experts + bias 3.0 and 8 experts + bias 3.0, with the same two misses each time (n=30, so only large losses would show).
+
+Perplexity is a proxy (4 chunks, error bars about 0.65 absolute); bias 10 cost +20% on code, so choose the bias per workload. Not helpful: warm-starting the pool from another prompt, training-free layer skipping (25% of layers: +118% perplexity), the VNNI kernel, locking dense weights, quantised KV at short context. A disk prompt cache cuts a repeated 450-token prompt from 63 s to 11 s. Raw data: `results/mac-pool-vs-mmap/routing-and-quality.json`.
 
 The 125B-scale numbers in `tools/combo_model.py`, `ram_sweep.py`, `hundredx_map.py` are model projections (set `COMBO_HIT=real` for a lower, more pessimistic hit-rate curve taken from public benchmarks), not measurements of a 125B model.
 

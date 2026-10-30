@@ -1,0 +1,2558 @@
+{
+ "machine": "MacBook Pro 16,2 (2020), 4 cores, 16 GB; internal NVMe",
+ "model": "Qwen3-30B-A3B Q4_K_M",
+ "setup": "9 GB wired ballast, real prompt, llama-completion, greedy; quality = llama-perplexity in decode mode (-b 1), 4 chunks of 512 tokens (baseline docs 7.425, code 4.053)",
+ "speed": {
+  "bias_sweep_48tok": {
+   "rows": [
+    {
+     "tok_s": 2.1749512255618777,
+     "runs": 47,
+     "prompt_ms": 34064.86,
+     "wall_s": 57.1,
+     "text_md5": "28e43bc1",
+     "pool": [
+      "6771",
+      "43837",
+      "30994"
+     ],
+     "rc": 0,
+     "variant": "pool+overlap, no bias",
+     "round": 1
+    },
+    {
+     "tok_s": 2.3784209410348964,
+     "runs": 47,
+     "prompt_ms": 33529.61,
+     "wall_s": 54.7,
+     "text_md5": "e451504e",
+     "pool": [
+      "6771",
+      "45420",
+      "26244"
+     ],
+     "rc": 0,
+     "variant": "cache bias 0.3",
+     "round": 1
+    },
+    {
+     "tok_s": 2.9467601939093604,
+     "runs": 47,
+     "prompt_ms": 33414.0,
+     "wall_s": 50.7,
+     "text_md5": "28e43bc1",
+     "pool": [
+      "6771",
+      "47986",
+      "18548"
+     ],
+     "rc": 0,
+     "variant": "cache bias 1.0",
+     "round": 1
+    },
+    {
+     "tok_s": 3.8610197199528464,
+     "runs": 47,
+     "prompt_ms": 33891.87,
+     "wall_s": 47.7,
+     "text_md5": "286c0d65",
+     "pool": [
+      "6771",
+      "50282",
+      "11657"
+     ],
+     "rc": 0,
+     "variant": "cache bias 3.0",
+     "round": 1
+    },
+    {
+     "tok_s": 2.240455184222619,
+     "runs": 47,
+     "prompt_ms": 33499.99,
+     "wall_s": 55.8,
+     "text_md5": "28e43bc1",
+     "pool": [
+      "6771",
+      "43837",
+      "30994"
+     ],
+     "rc": 0,
+     "variant": "pool+overlap, no bias",
+     "round": 2
+    },
+    {
+     "tok_s": 2.136812366960698,
+     "runs": 47,
+     "prompt_ms": 34263.94,
+     "wall_s": 57.6,
+     "text_md5": "e451504e",
+     "pool": [
+      "6771",
+      "45420",
+      "26244"
+     ],
+     "rc": 0,
+     "variant": "cache bias 0.3",
+     "round": 2
+    },
+    {
+     "tok_s": 3.0059549887020864,
+     "runs": 47,
+     "prompt_ms": 33487.94,
+     "wall_s": 50.5,
+     "text_md5": "28e43bc1",
+     "pool": [
+      "6771",
+      "47986",
+      "18548"
+     ],
+     "rc": 0,
+     "variant": "cache bias 1.0",
+     "round": 2
+    },
+    {
+     "tok_s": 4.01597160451737,
+     "runs": 47,
+     "prompt_ms": 32837.76,
+     "wall_s": 45.9,
+     "text_md5": "286c0d65",
+     "pool": [
+      "6771",
+      "50282",
+      "11657"
+     ],
+     "rc": 0,
+     "variant": "cache bias 3.0",
+     "round": 2
+    },
+    {
+     "tok_s": 1.8656694200507067,
+     "runs": 47,
+     "prompt_ms": 35533.09,
+     "wall_s": 62.5,
+     "text_md5": "28e43bc1",
+     "pool": [
+      "6771",
+      "43837",
+      "30994"
+     ],
+     "rc": 0,
+     "variant": "pool+overlap, no bias",
+     "round": 3
+    },
+    {
+     "tok_s": 2.4974215450962594,
+     "runs": 47,
+     "prompt_ms": 32975.44,
+     "wall_s": 53.2,
+     "text_md5": "e451504e",
+     "pool": [
+      "6771",
+      "45420",
+      "26244"
+     ],
+     "rc": 0,
+     "variant": "cache bias 0.3",
+     "round": 3
+    },
+    {
+     "tok_s": 2.907052261377398,
+     "runs": 47,
+     "prompt_ms": 34555.72,
+     "wall_s": 52.1,
+     "text_md5": "28e43bc1",
+     "pool": [
+      "6771",
+      "47986",
+      "18548"
+     ],
+     "rc": 0,
+     "variant": "cache bias 1.0",
+     "round": 3
+    },
+    {
+     "tok_s": 4.323763403666551,
+     "runs": 47,
+     "prompt_ms": 32385.15,
+     "wall_s": 44.6,
+     "text_md5": "286c0d65",
+     "pool": [
+      "6771",
+      "50282",
+      "11657"
+     ],
+     "rc": 0,
+     "variant": "cache bias 3.0",
+     "round": 3
+    }
+   ],
+   "summary": {
+    "pool+overlap, no bias": {
+     "median": 2.175,
+     "values": [
+      2.175,
+      2.24,
+      1.866
+     ]
+    },
+    "cache bias 0.3": {
+     "median": 2.378,
+     "values": [
+      2.378,
+      2.137,
+      2.497
+     ]
+    },
+    "cache bias 1.0": {
+     "median": 2.947,
+     "values": [
+      2.947,
+      3.006,
+      2.907
+     ]
+    },
+    "cache bias 3.0": {
+     "median": 4.016,
+     "values": [
+      3.861,
+      4.016,
+      4.324
+     ]
+    }
+   },
+   "ballast_gb": 9.0,
+   "tokens": 48
+  },
+  "combo_96tok": {
+   "rows": [
+    {
+     "tok_s": 1.8132494326915132,
+     "runs": 95,
+     "prompt_ms": 33626.38,
+     "wall_s": 87.8,
+     "text_md5": "7e4a58b9",
+     "pool": [
+      "13683",
+      "88466",
+      "62992"
+     ],
+     "rc": 0,
+     "variant": "pool+overlap, 8 experts, no bias",
+     "round": 1
+    },
+    {
+     "tok_s": 4.5283810322802065,
+     "runs": 95,
+     "prompt_ms": 29130.35,
+     "wall_s": 51.5,
+     "text_md5": "ef3b8ee2",
+     "pool": [
+      "13683",
+      "73772",
+      "24977"
+     ],
+     "rc": 0,
+     "variant": "bias 1.0 + anchored 6",
+     "round": 1
+    },
+    {
+     "tok_s": 5.83743182494095,
+     "runs": 95,
+     "prompt_ms": 30843.15,
+     "wall_s": 48.6,
+     "text_md5": "00cf485e",
+     "pool": [
+      "13683",
+      "77545",
+      "13658"
+     ],
+     "rc": 0,
+     "variant": "bias 3.0 + anchored 6",
+     "round": 1
+    },
+    {
+     "tok_s": 2.2279319819401486,
+     "runs": 95,
+     "prompt_ms": 32454.02,
+     "wall_s": 76.5,
+     "text_md5": "7e4a58b9",
+     "pool": [
+      "13683",
+      "88466",
+      "62992"
+     ],
+     "rc": 0,
+     "variant": "pool+overlap, 8 experts, no bias",
+     "round": 2
+    },
+    {
+     "tok_s": 4.061769683122107,
+     "runs": 95,
+     "prompt_ms": 27733.04,
+     "wall_s": 52.6,
+     "text_md5": "ef3b8ee2",
+     "pool": [
+      "13683",
+      "73772",
+      "24977"
+     ],
+     "rc": 0,
+     "variant": "bias 1.0 + anchored 6",
+     "round": 2
+    },
+    {
+     "tok_s": 6.010501294788516,
+     "runs": 95,
+     "prompt_ms": 28837.0,
+     "wall_s": 46.1,
+     "text_md5": "00cf485e",
+     "pool": [
+      "13683",
+      "77545",
+      "13658"
+     ],
+     "rc": 0,
+     "variant": "bias 3.0 + anchored 6",
+     "round": 2
+    },
+    {
+     "tok_s": 2.1656809778665127,
+     "runs": 95,
+     "prompt_ms": 31411.38,
+     "wall_s": 76.7,
+     "text_md5": "7e4a58b9",
+     "pool": [
+      "13683",
+      "88466",
+      "62992"
+     ],
+     "rc": 0,
+     "variant": "pool+overlap, 8 experts, no bias",
+     "round": 3
+    },
+    {
+     "tok_s": 3.8054173921995353,
+     "runs": 95,
+     "prompt_ms": 27159.14,
+     "wall_s": 53.5,
+     "text_md5": "ef3b8ee2",
+     "pool": [
+      "13683",
+      "73772",
+      "24977"
+     ],
+     "rc": 0,
+     "variant": "bias 1.0 + anchored 6",
+     "round": 3
+    },
+    {
+     "tok_s": 5.206058536922188,
+     "runs": 95,
+     "prompt_ms": 29723.84,
+     "wall_s": 49.4,
+     "text_md5": "00cf485e",
+     "pool": [
+      "13683",
+      "77545",
+      "13658"
+     ],
+     "rc": 0,
+     "variant": "bias 3.0 + anchored 6",
+     "round": 3
+    }
+   ],
+   "summary": {
+    "pool+overlap, 8 experts, no bias": {
+     "median": 2.166,
+     "values": [
+      1.813,
+      2.228,
+      2.166
+     ]
+    },
+    "bias 1.0 + anchored 6": {
+     "median": 4.062,
+     "values": [
+      4.528,
+      4.062,
+      3.805
+     ]
+    },
+    "bias 3.0 + anchored 6": {
+     "median": 5.837,
+     "values": [
+      5.837,
+      6.011,
+      5.206
+     ]
+    }
+   },
+   "ballast_gb": 9.0,
+   "tokens": 96
+  },
+  "long_160tok": {
+   "rows": [
+    {
+     "tok_s": 0.417465770104226,
+     "runs": 159,
+     "prompt_ms": 34179.29,
+     "wall_s": 416.9,
+     "text_md5": "a2b25efc",
+     "pool": null,
+     "rc": 0,
+     "variant": "plain mmap, 8 experts",
+     "round": 1
+    },
+    {
+     "tok_s": 1.5436181341151742,
+     "runs": 159,
+     "prompt_ms": 36867.69,
+     "wall_s": 141.4,
+     "text_md5": "a2b25efc",
+     "pool": [
+      "22899",
+      "148349",
+      "104526"
+     ],
+     "rc": 0,
+     "variant": "pool+overlap 1500MB, 8 experts",
+     "round": 1
+    },
+    {
+     "tok_s": 2.1949372047792206,
+     "runs": 159,
+     "prompt_ms": 29985.86,
+     "wall_s": 104.0,
+     "text_md5": "5492fc20",
+     "pool": [
+      "22899",
+      "113322",
+      "72217"
+     ],
+     "rc": 0,
+     "variant": "pool+overlap 1500MB, anchored 6 experts",
+     "round": 1
+    },
+    {
+     "tok_s": 0.418295640993741,
+     "runs": 159,
+     "prompt_ms": 34278.95,
+     "wall_s": 416.1,
+     "text_md5": "a2b25efc",
+     "pool": null,
+     "rc": 0,
+     "variant": "plain mmap, 8 experts",
+     "round": 2
+    },
+    {
+     "tok_s": 2.023590740863297,
+     "runs": 159,
+     "prompt_ms": 36096.61,
+     "wall_s": 116.4,
+     "text_md5": "a2b25efc",
+     "pool": [
+      "22899",
+      "148349",
+      "104526"
+     ],
+     "rc": 0,
+     "variant": "pool+overlap 1500MB, 8 experts",
+     "round": 2
+    },
+    {
+     "tok_s": 3.050396580332769,
+     "runs": 159,
+     "prompt_ms": 27867.31,
+     "wall_s": 81.6,
+     "text_md5": "5492fc20",
+     "pool": [
+      "22899",
+      "113322",
+      "72217"
+     ],
+     "rc": 0,
+     "variant": "pool+overlap 1500MB, anchored 6 experts",
+     "round": 2
+    },
+    {
+     "tok_s": 0.44048221000396603,
+     "runs": 159,
+     "prompt_ms": 32767.34,
+     "wall_s": 395.2,
+     "text_md5": "a2b25efc",
+     "pool": null,
+     "rc": 0,
+     "variant": "plain mmap, 8 experts",
+     "round": 3
+    },
+    {
+     "tok_s": 2.001302986699265,
+     "runs": 159,
+     "prompt_ms": 33192.25,
+     "wall_s": 114.2,
+     "text_md5": "a2b25efc",
+     "pool": [
+      "22899",
+      "148349",
+      "104526"
+     ],
+     "rc": 0,
+     "variant": "pool+overlap 1500MB, 8 experts",
+     "round": 3
+    },
+    {
+     "tok_s": 3.229847528851781,
+     "runs": 159,
+     "prompt_ms": 26682.0,
+     "wall_s": 77.3,
+     "text_md5": "5492fc20",
+     "pool": [
+      "22899",
+      "113322",
+      "72217"
+     ],
+     "rc": 0,
+     "variant": "pool+overlap 1500MB, anchored 6 experts",
+     "round": 3
+    }
+   ],
+   "summary": {
+    "plain mmap, 8 experts": {
+     "median": 0.418,
+     "values": [
+      0.417,
+      0.418,
+      0.44
+     ]
+    },
+    "pool+overlap 1500MB, 8 experts": {
+     "median": 2.001,
+     "values": [
+      1.544,
+      2.024,
+      2.001
+     ]
+    },
+    "pool+overlap 1500MB, anchored 6 experts": {
+     "median": 3.05,
+     "values": [
+      2.195,
+      3.05,
+      3.23
+     ]
+    }
+   },
+   "ballast_gb": 9.0,
+   "tokens": 160
+  },
+  "adaptive_pool_48tok": {
+   "rows": [
+    {
+     "tok_s": 1.7462569724882788,
+     "runs": 47,
+     "prompt_ms": 38686.95,
+     "wall_s": 68.0,
+     "text_md5": "28e43bc1",
+     "pool": [
+      "6771",
+      "43837",
+      "30994"
+     ],
+     "rc": 0,
+     "variant": "fixed 1500MB (reference)",
+     "round": 1
+    },
+    {
+     "tok_s": 0.1676612785563722,
+     "runs": 47,
+     "prompt_ms": 33125.62,
+     "wall_s": 315.8,
+     "text_md5": "28e43bc1",
+     "pool": [
+      "6771",
+      "47649",
+      "19557"
+     ],
+     "rc": 0,
+     "variant": "fixed 3000MB",
+     "round": 1
+    },
+    {
+     "tok_s": 1.864525186759967,
+     "runs": 47,
+     "prompt_ms": 35627.0,
+     "wall_s": 62.3,
+     "text_md5": "28e43bc1",
+     "pool": [
+      "6771",
+      "43982",
+      "30558"
+     ],
+     "rc": 0,
+     "variant": "adaptive, max 3000MB",
+     "round": 1
+    },
+    {
+     "tok_s": 1.6445659168262536,
+     "runs": 47,
+     "prompt_ms": 34643.13,
+     "wall_s": 64.8,
+     "text_md5": "28e43bc1",
+     "pool": [
+      "6771",
+      "43837",
+      "30994"
+     ],
+     "rc": 0,
+     "variant": "fixed 1500MB (reference)",
+     "round": 2
+    },
+    {
+     "tok_s": 0.2163670435795911,
+     "runs": 47,
+     "prompt_ms": 33489.6,
+     "wall_s": 253.0,
+     "text_md5": "28e43bc1",
+     "pool": [
+      "6771",
+      "47649",
+      "19557"
+     ],
+     "rc": 0,
+     "variant": "fixed 3000MB",
+     "round": 2
+    },
+    {
+     "tok_s": 1.3758745951781743,
+     "runs": 47,
+     "prompt_ms": 37283.11,
+     "wall_s": 73.2,
+     "text_md5": "28e43bc1",
+     "pool": [
+      "6771",
+      "45508",
+      "25976"
+     ],
+     "rc": 0,
+     "variant": "adaptive, max 3000MB",
+     "round": 2
+    },
+    {
+     "tok_s": 1.8427007877349835,
+     "runs": 47,
+     "prompt_ms": 33488.5,
+     "wall_s": 60.5,
+     "text_md5": "28e43bc1",
+     "pool": [
+      "6771",
+      "43837",
+      "30994"
+     ],
+     "rc": 0,
+     "variant": "fixed 1500MB (reference)",
+     "round": 3
+    },
+    {
+     "tok_s": 0.1988421632368932,
+     "runs": 47,
+     "prompt_ms": 33631.52,
+     "wall_s": 272.3,
+     "text_md5": "28e43bc1",
+     "pool": [
+      "6771",
+      "47649",
+      "19557"
+     ],
+     "rc": 0,
+     "variant": "fixed 3000MB",
+     "round": 3
+    },
+    {
+     "tok_s": 0.9273333680590083,
+     "runs": 47,
+     "prompt_ms": 36710.85,
+     "wall_s": 89.3,
+     "text_md5": "28e43bc1",
+     "pool": [
+      "6771",
+      "45534",
+      "25898"
+     ],
+     "rc": 0,
+     "variant": "adaptive, max 3000MB",
+     "round": 3
+    }
+   ],
+   "summary": {
+    "fixed 1500MB (reference)": {
+     "median": 1.746,
+     "values": [
+      1.746,
+      1.645,
+      1.843
+     ]
+    },
+    "fixed 3000MB": {
+     "median": 0.199,
+     "values": [
+      0.168,
+      0.216,
+      0.199
+     ]
+    },
+    "adaptive, max 3000MB": {
+     "median": 1.376,
+     "values": [
+      1.865,
+      1.376,
+      0.927
+     ]
+    }
+   },
+   "ballast_gb": 9.0,
+   "tokens": 48
+  },
+  "kv_quant_48tok": {
+   "rows": [
+    {
+     "tok_s": 1.409179153143294,
+     "runs": 47,
+     "prompt_ms": 34535.53,
+     "wall_s": 69.6,
+     "text_md5": "28e43bc1",
+     "pool": [
+      "6771",
+      "43837",
+      "30994"
+     ],
+     "rc": 0,
+     "variant": "pool+overlap, f16 KV",
+     "round": 1
+    },
+    {
+     "tok_s": 2.0563978035921333,
+     "runs": 47,
+     "prompt_ms": 37790.6,
+     "wall_s": 62.2,
+     "text_md5": "58acbbc0",
+     "pool": [
+      "6771",
+      "43960",
+      "30623"
+     ],
+     "rc": 0,
+     "variant": "pool+overlap, q8_0 KV",
+     "round": 1
+    },
+    {
+     "tok_s": 1.9033310317876533,
+     "runs": 47,
+     "prompt_ms": 32058.97,
+     "wall_s": 58.2,
+     "text_md5": "28e43bc1",
+     "pool": [
+      "6771",
+      "43837",
+      "30994"
+     ],
+     "rc": 0,
+     "variant": "pool+overlap, f16 KV",
+     "round": 2
+    },
+    {
+     "tok_s": 2.4051820927540564,
+     "runs": 47,
+     "prompt_ms": 32448.34,
+     "wall_s": 53.2,
+     "text_md5": "58acbbc0",
+     "pool": [
+      "6771",
+      "43960",
+      "30623"
+     ],
+     "rc": 0,
+     "variant": "pool+overlap, q8_0 KV",
+     "round": 2
+    },
+    {
+     "tok_s": 2.27049630150645,
+     "runs": 47,
+     "prompt_ms": 33739.68,
+     "wall_s": 55.7,
+     "text_md5": "28e43bc1",
+     "pool": [
+      "6771",
+      "43837",
+      "30994"
+     ],
+     "rc": 0,
+     "variant": "pool+overlap, f16 KV",
+     "round": 3
+    },
+    {
+     "tok_s": 2.1799072843689054,
+     "runs": 47,
+     "prompt_ms": 32136.52,
+     "wall_s": 55.5,
+     "text_md5": "58acbbc0",
+     "pool": [
+      "6771",
+      "43960",
+      "30623"
+     ],
+     "rc": 0,
+     "variant": "pool+overlap, q8_0 KV",
+     "round": 3
+    }
+   ],
+   "summary": {
+    "pool+overlap, f16 KV": {
+     "median": 1.903,
+     "values": [
+      1.409,
+      1.903,
+      2.27
+     ]
+    },
+    "pool+overlap, q8_0 KV": {
+     "median": 2.18,
+     "values": [
+      2.056,
+      2.405,
+      2.18
+     ]
+    }
+   },
+   "ballast_gb": 9.0,
+   "tokens": 48
+  },
+  "prompt_cache": [
+   {
+    "tok_s": 1.6018829600234088,
+    "runs": 15,
+    "prompt_ms": 52038.62,
+    "wall_s": 62.9,
+    "text_md5": "41925412",
+    "pool": [
+     "2163",
+     "13738",
+     "10699"
+    ],
+    "rc": 0,
+    "variant": "no cache"
+   },
+   {
+    "tok_s": 1.5691935914133726,
+    "runs": 16,
+    "prompt_ms": 53053.5,
+    "wall_s": 65.2,
+    "text_md5": "7158bf6a",
+    "pool": [
+     "2307",
+     "14604",
+     "11556"
+    ],
+    "rc": 0,
+    "variant": "cache save (first run)"
+   },
+   {
+    "tok_s": 1.689305114899143,
+    "runs": 16,
+    "prompt_ms": 0.0,
+    "wall_s": 11.1,
+    "text_md5": "7158bf6a",
+    "pool": [
+     "2304",
+     "14587",
+     "11535"
+    ],
+    "rc": 0,
+    "variant": "cache load (repeat run)"
+   },
+   {
+    "tok_s": 1.5690310919201174,
+    "runs": 15,
+    "prompt_ms": 51357.97,
+    "wall_s": 62.4,
+    "text_md5": "41925412",
+    "pool": [
+     "2163",
+     "13738",
+     "10699"
+    ],
+    "rc": 0,
+    "variant": "no cache again"
+   }
+  ]
+ },
+ "quality_perplexity": {
+  "standard_renorm_batch_10chunks": {
+   "baseline_8": 9.338,
+   "6_experts": 9.781,
+   "4_experts": 12.22
+  },
+  "anchored_batch_10chunks": {
+   "7": 9.456,
+   "6": 9.813,
+   "4": 11.067
+  },
+  "layer_skipping_batch_10chunks": {
+   "skip_25pct_whole_layers": 20.405,
+   "skip_12pct_whole_layers": 11.262,
+   "skip_moe_only_25pct": 11.622
+  },
+  "decode_mode_docs_4chunks": {
+   "no_bias": 7.425,
+   "bias0.6": 7.546,
+   "bias1.0": 7.43,
+   "bias3.0": 7.427,
+   "anchored6": 7.668,
+   "anchored6_bias1": 7.688,
+   "anchored6_bias3": 7.572
+  },
+  "decode_mode_code_4chunks": {
+   "no_bias": 4.053,
+   "bias3": 4.241,
+   "bias10": 4.88,
+   "anchored6": 4.267,
+   "anchored6_bias1": 4.269
+  }
+ },
+ "olmoe_second_geometry": {
+  "model": "OLMoE-1B-7B Q8_0 (64 experts, top-8)",
+  "setup": "8 GB wired ballast, pool 2000 MB, 96 tokens, 3 rounds",
+  "speed_medians_tok_s": {
+   "plain mmap": 2.098,
+   "pool+overlap": 5.297,
+   "bias 1.0": 8.999,
+   "bias 3.0": 13.024
+  },
+  "perplexity_decode_mode_4chunks": {
+   "docs": {
+    "b0": 13.989,
+    "b1": 14.049,
+    "b3": 16.383
+   },
+   "code": {
+    "b0": 7.336,
+    "b1": 7.422,
+    "b3": 8.634
+   }
+  },
+  "raw_speed": {
+   "rows": [
+    {
+     "tok_s": 2.0983169730872073,
+     "runs": 95,
+     "prompt_ms": 19703.07,
+     "wall_s": 65.9,
+     "text_md5": "5661d29d",
+     "pool": null,
+     "rc": 0,
+     "variant": "OLMoE plain mmap",
+     "round": 1
+    },
+    {
+     "tok_s": 4.822048639750838,
+     "runs": 95,
+     "prompt_ms": 16915.92,
+     "wall_s": 37.4,
+     "text_md5": "5661d29d",
+     "pool": [
+      "4563",
+      "32008",
+      "13489"
+     ],
+     "rc": 0,
+     "variant": "OLMoE pool+overlap 2000MB",
+     "round": 1
+    },
+    {
+     "tok_s": 7.67764246269676,
+     "runs": 95,
+     "prompt_ms": 18313.7,
+     "wall_s": 31.4,
+     "text_md5": "ae501412",
+     "pool": [
+      "4563",
+      "34308",
+      "6582"
+     ],
+     "rc": 0,
+     "variant": "OLMoE pool 2000MB, bias 1.0",
+     "round": 1
+    },
+    {
+     "tok_s": 13.024385763112472,
+     "runs": 95,
+     "prompt_ms": 18087.05,
+     "wall_s": 26.1,
+     "text_md5": "33673985",
+     "pool": [
+      "4563",
+      "35586",
+      "2754"
+     ],
+     "rc": 0,
+     "variant": "OLMoE pool 2000MB, bias 3.0",
+     "round": 1
+    },
+    {
+     "tok_s": 1.8726828014388512,
+     "runs": 95,
+     "prompt_ms": 18927.04,
+     "wall_s": 70.3,
+     "text_md5": "5661d29d",
+     "pool": null,
+     "rc": 0,
+     "variant": "OLMoE plain mmap",
+     "round": 2
+    },
+    {
+     "tok_s": 6.70350063859664,
+     "runs": 95,
+     "prompt_ms": 15654.08,
+     "wall_s": 30.7,
+     "text_md5": "5661d29d",
+     "pool": [
+      "4563",
+      "32008",
+      "13489"
+     ],
+     "rc": 0,
+     "variant": "OLMoE pool+overlap 2000MB",
+     "round": 2
+    },
+    {
+     "tok_s": 9.680058773241056,
+     "runs": 95,
+     "prompt_ms": 18415.97,
+     "wall_s": 28.9,
+     "text_md5": "ae501412",
+     "pool": [
+      "4563",
+      "34308",
+      "6582"
+     ],
+     "rc": 0,
+     "variant": "OLMoE pool 2000MB, bias 1.0",
+     "round": 2
+    },
+    {
+     "tok_s": 12.341316649605337,
+     "runs": 95,
+     "prompt_ms": 18772.22,
+     "wall_s": 27.1,
+     "text_md5": "33673985",
+     "pool": [
+      "4563",
+      "35586",
+      "2754"
+     ],
+     "rc": 0,
+     "variant": "OLMoE pool 2000MB, bias 3.0",
+     "round": 2
+    },
+    {
+     "tok_s": 2.113213523765755,
+     "runs": 95,
+     "prompt_ms": 19049.8,
+     "wall_s": 64.6,
+     "text_md5": "5661d29d",
+     "pool": null,
+     "rc": 0,
+     "variant": "OLMoE plain mmap",
+     "round": 3
+    },
+    {
+     "tok_s": 5.296754873432649,
+     "runs": 95,
+     "prompt_ms": 18555.71,
+     "wall_s": 37.3,
+     "text_md5": "5661d29d",
+     "pool": [
+      "4563",
+      "32008",
+      "13489"
+     ],
+     "rc": 0,
+     "variant": "OLMoE pool+overlap 2000MB",
+     "round": 3
+    },
+    {
+     "tok_s": 8.998640731636852,
+     "runs": 95,
+     "prompt_ms": 18805.67,
+     "wall_s": 30.1,
+     "text_md5": "ae501412",
+     "pool": [
+      "4563",
+      "34308",
+      "6582"
+     ],
+     "rc": 0,
+     "variant": "OLMoE pool 2000MB, bias 1.0",
+     "round": 3
+    },
+    {
+     "tok_s": 13.271084960088958,
+     "runs": 95,
+     "prompt_ms": 18585.24,
+     "wall_s": 26.4,
+     "text_md5": "33673985",
+     "pool": [
+      "4563",
+      "35586",
+      "2754"
+     ],
+     "rc": 0,
+     "variant": "OLMoE pool 2000MB, bias 3.0",
+     "round": 3
+    }
+   ],
+   "summary": {
+    "OLMoE plain mmap": {
+     "median": 2.098,
+     "values": [
+      2.098,
+      1.873,
+      2.113
+     ]
+    },
+    "OLMoE pool+overlap 2000MB": {
+     "median": 5.297,
+     "values": [
+      4.822,
+      6.704,
+      5.297
+     ]
+    },
+    "OLMoE pool 2000MB, bias 1.0": {
+     "median": 8.999,
+     "values": [
+      7.678,
+      9.68,
+      8.999
+     ]
+    },
+    "OLMoE pool 2000MB, bias 3.0": {
+     "median": 13.024,
+     "values": [
+      13.024,
+      12.341,
+      13.271
+     ]
+    }
+   },
+   "ballast_gb": 8.0,
+   "tokens": 96
+  }
+ },
+ "eight_prompt_types_64tok": [
+  {
+   "tok_s": 2.0993219190201566,
+   "runs": 63,
+   "prompt_ms": 33748.55,
+   "wall_s": 65.2,
+   "text_md5": "2c5afea5",
+   "pool": [
+    "9075",
+    "58783",
+    "41450"
+   ],
+   "rc": 0,
+   "prompt": "qa",
+   "variant": "pool only"
+  },
+  {
+   "tok_s": 2.869432617523761,
+   "runs": 63,
+   "prompt_ms": 31527.86,
+   "wall_s": 54.9,
+   "text_md5": "7dd7766e",
+   "pool": [
+    "9075",
+    "63024",
+    "28745"
+   ],
+   "rc": 0,
+   "prompt": "qa",
+   "variant": "bias 1.0"
+  },
+  {
+   "tok_s": 4.021622284128253,
+   "runs": 63,
+   "prompt_ms": 25423.68,
+   "wall_s": 42.8,
+   "text_md5": "8f1c217f",
+   "pool": [
+    "9075",
+    "48708",
+    "17224"
+   ],
+   "rc": 0,
+   "prompt": "qa",
+   "variant": "6 experts + bias 1.0"
+  },
+  {
+   "tok_s": 5.570390280995244,
+   "runs": 63,
+   "prompt_ms": 24243.03,
+   "wall_s": 37.3,
+   "text_md5": "60f8c50d",
+   "pool": [
+    "9075",
+    "51390",
+    "9181"
+   ],
+   "rc": 0,
+   "prompt": "qa",
+   "variant": "6 experts + bias 3.0"
+  },
+  {
+   "tok_s": 2.102573550025231,
+   "runs": 63,
+   "prompt_ms": 25810.97,
+   "wall_s": 57.3,
+   "text_md5": "989bd370",
+   "pool": [
+    "9075",
+    "58348",
+    "42757"
+   ],
+   "rc": 0,
+   "prompt": "code",
+   "variant": "pool only"
+  },
+  {
+   "tok_s": 3.2266374801088045,
+   "runs": 63,
+   "prompt_ms": 25438.22,
+   "wall_s": 46.4,
+   "text_md5": "55f6c1a2",
+   "pool": [
+    "9075",
+    "63586",
+    "27040"
+   ],
+   "rc": 0,
+   "prompt": "code",
+   "variant": "bias 1.0"
+  },
+  {
+   "tok_s": 4.28496223111862,
+   "runs": 63,
+   "prompt_ms": 21948.61,
+   "wall_s": 38.3,
+   "text_md5": "7af0509d",
+   "pool": [
+    "9075",
+    "48234",
+    "18648"
+   ],
+   "rc": 0,
+   "prompt": "code",
+   "variant": "6 experts + bias 1.0"
+  },
+  {
+   "tok_s": 4.8598998860623475,
+   "runs": 63,
+   "prompt_ms": 21119.32,
+   "wall_s": 35.8,
+   "text_md5": "daa5409a",
+   "pool": [
+    "9075",
+    "50540",
+    "11733"
+   ],
+   "rc": 0,
+   "prompt": "code",
+   "variant": "6 experts + bias 3.0"
+  },
+  {
+   "tok_s": 2.149231001736101,
+   "runs": 63,
+   "prompt_ms": 36177.2,
+   "wall_s": 67.1,
+   "text_md5": "28ea4a2b",
+   "pool": [
+    "9075",
+    "58984",
+    "40853"
+   ],
+   "rc": 0,
+   "prompt": "math",
+   "variant": "pool only"
+  },
+  {
+   "tok_s": 2.7241982749338733,
+   "runs": 63,
+   "prompt_ms": 38649.5,
+   "wall_s": 63.9,
+   "text_md5": "28ea4a2b",
+   "pool": [
+    "9075",
+    "65180",
+    "22267"
+   ],
+   "rc": 0,
+   "prompt": "math",
+   "variant": "bias 1.0"
+  },
+  {
+   "tok_s": 4.265723422681055,
+   "runs": 63,
+   "prompt_ms": 30599.02,
+   "wall_s": 46.8,
+   "text_md5": "28ea4a2b",
+   "pool": [
+    "9075",
+    "49451",
+    "15004"
+   ],
+   "rc": 0,
+   "prompt": "math",
+   "variant": "6 experts + bias 1.0"
+  },
+  {
+   "tok_s": 5.2234171595057495,
+   "runs": 63,
+   "prompt_ms": 32569.93,
+   "wall_s": 46.0,
+   "text_md5": "a26c9da5",
+   "pool": [
+    "9075",
+    "51802",
+    "7942"
+   ],
+   "rc": 0,
+   "prompt": "math",
+   "variant": "6 experts + bias 3.0"
+  },
+  {
+   "tok_s": 2.353691896500322,
+   "runs": 63,
+   "prompt_ms": 25991.36,
+   "wall_s": 54.5,
+   "text_md5": "2ca06e64",
+   "pool": [
+    "9075",
+    "59452",
+    "39442"
+   ],
+   "rc": 0,
+   "prompt": "story",
+   "variant": "pool only"
+  },
+  {
+   "tok_s": 2.9932367103853434,
+   "runs": 63,
+   "prompt_ms": 24902.35,
+   "wall_s": 47.5,
+   "text_md5": "f9363118",
+   "pool": [
+    "9075",
+    "64073",
+    "25595"
+   ],
+   "rc": 0,
+   "prompt": "story",
+   "variant": "bias 1.0"
+  },
+  {
+   "tok_s": 4.4105632289243335,
+   "runs": 63,
+   "prompt_ms": 21112.11,
+   "wall_s": 37.0,
+   "text_md5": "afa70c9d",
+   "pool": [
+    "9075",
+    "48933",
+    "16550"
+   ],
+   "rc": 0,
+   "prompt": "story",
+   "variant": "6 experts + bias 1.0"
+  },
+  {
+   "tok_s": 5.875309153172108,
+   "runs": 63,
+   "prompt_ms": 21219.33,
+   "wall_s": 33.5,
+   "text_md5": "91d21c06",
+   "pool": [
+    "9075",
+    "51541",
+    "8725"
+   ],
+   "rc": 0,
+   "prompt": "story",
+   "variant": "6 experts + bias 3.0"
+  },
+  {
+   "tok_s": 2.0965414055280136,
+   "runs": 63,
+   "prompt_ms": 31060.63,
+   "wall_s": 62.6,
+   "text_md5": "deb0c7a5",
+   "pool": [
+    "9075",
+    "57441",
+    "45480"
+   ],
+   "rc": 0,
+   "prompt": "json",
+   "variant": "pool only"
+  },
+  {
+   "tok_s": 2.884701238818921,
+   "runs": 63,
+   "prompt_ms": 30555.67,
+   "wall_s": 53.9,
+   "text_md5": "174da6a3",
+   "pool": [
+    "9075",
+    "63712",
+    "26651"
+   ],
+   "rc": 0,
+   "prompt": "json",
+   "variant": "bias 1.0"
+  },
+  {
+   "tok_s": 3.3287488184262632,
+   "runs": 63,
+   "prompt_ms": 25331.21,
+   "wall_s": 46.0,
+   "text_md5": "2e1b95f2",
+   "pool": [
+    "9075",
+    "47828",
+    "19862"
+   ],
+   "rc": 0,
+   "prompt": "json",
+   "variant": "6 experts + bias 1.0"
+  },
+  {
+   "tok_s": 5.511695292487297,
+   "runs": 63,
+   "prompt_ms": 24900.39,
+   "wall_s": 37.7,
+   "text_md5": "28929c0a",
+   "pool": [
+    "9075",
+    "51490",
+    "8883"
+   ],
+   "rc": 0,
+   "prompt": "json",
+   "variant": "6 experts + bias 3.0"
+  },
+  {
+   "tok_s": 2.1033358907226862,
+   "runs": 63,
+   "prompt_ms": 32315.89,
+   "wall_s": 63.7,
+   "text_md5": "395cffcd",
+   "pool": [
+    "9075",
+    "58580",
+    "42062"
+   ],
+   "rc": 0,
+   "prompt": "translate",
+   "variant": "pool only"
+  },
+  {
+   "tok_s": 3.3236314947320444,
+   "runs": 63,
+   "prompt_ms": 30781.64,
+   "wall_s": 51.2,
+   "text_md5": "d302ab59",
+   "pool": [
+    "9075",
+    "63878",
+    "26186"
+   ],
+   "rc": 0,
+   "prompt": "translate",
+   "variant": "bias 1.0"
+  },
+  {
+   "tok_s": 4.329578512095674,
+   "runs": 63,
+   "prompt_ms": 25680.44,
+   "wall_s": 41.7,
+   "text_md5": "5ae282b5",
+   "pool": [
+    "9075",
+    "48800",
+    "16945"
+   ],
+   "rc": 0,
+   "prompt": "translate",
+   "variant": "6 experts + bias 1.0"
+  },
+  {
+   "tok_s": 5.402600966465284,
+   "runs": 63,
+   "prompt_ms": 26309.9,
+   "wall_s": 39.4,
+   "text_md5": "313e92f8",
+   "pool": [
+    "9075",
+    "51226",
+    "9674"
+   ],
+   "rc": 0,
+   "prompt": "translate",
+   "variant": "6 experts + bias 3.0"
+  },
+  {
+   "tok_s": 2.1193518012976487,
+   "runs": 63,
+   "prompt_ms": 31751.4,
+   "wall_s": 63.0,
+   "text_md5": "b40f111c",
+   "pool": [
+    "9075",
+    "59268",
+    "39995"
+   ],
+   "rc": 0,
+   "prompt": "summarize",
+   "variant": "pool only"
+  },
+  {
+   "tok_s": 2.953310966299909,
+   "runs": 63,
+   "prompt_ms": 28489.53,
+   "wall_s": 51.3,
+   "text_md5": "056f0161",
+   "pool": [
+    "9075",
+    "63524",
+    "27211"
+   ],
+   "rc": 0,
+   "prompt": "summarize",
+   "variant": "bias 1.0"
+  },
+  {
+   "tok_s": 3.7514246481699596,
+   "runs": 63,
+   "prompt_ms": 25459.66,
+   "wall_s": 43.9,
+   "text_md5": "ee3d7443",
+   "pool": [
+    "9075",
+    "48708",
+    "17229"
+   ],
+   "rc": 0,
+   "prompt": "summarize",
+   "variant": "6 experts + bias 1.0"
+  },
+  {
+   "tok_s": 4.230294549366194,
+   "runs": 63,
+   "prompt_ms": 25841.95,
+   "wall_s": 42.4,
+   "text_md5": "86556581",
+   "pool": [
+    "9075",
+    "51339",
+    "9333"
+   ],
+   "rc": 0,
+   "prompt": "summarize",
+   "variant": "6 experts + bias 3.0"
+  },
+  {
+   "tok_s": 2.453000701246708,
+   "runs": 63,
+   "prompt_ms": 26913.15,
+   "wall_s": 54.1,
+   "text_md5": "5b4de684",
+   "pool": [
+    "9075",
+    "59971",
+    "37887"
+   ],
+   "rc": 0,
+   "prompt": "plan",
+   "variant": "pool only"
+  },
+  {
+   "tok_s": 3.5125867692565023,
+   "runs": 63,
+   "prompt_ms": 27724.94,
+   "wall_s": 47.2,
+   "text_md5": "b6fbb7d7",
+   "pool": [
+    "9075",
+    "64666",
+    "23792"
+   ],
+   "rc": 0,
+   "prompt": "plan",
+   "variant": "bias 1.0"
+  },
+  {
+   "tok_s": 4.523294969090818,
+   "runs": 63,
+   "prompt_ms": 22235.51,
+   "wall_s": 37.8,
+   "text_md5": "064e0e67",
+   "pool": [
+    "9075",
+    "48981",
+    "16404"
+   ],
+   "rc": 0,
+   "prompt": "plan",
+   "variant": "6 experts + bias 1.0"
+  },
+  {
+   "tok_s": 6.373428267064853,
+   "runs": 63,
+   "prompt_ms": 23177.3,
+   "wall_s": 34.6,
+   "text_md5": "08030c1d",
+   "pool": [
+    "9075",
+    "51858",
+    "7771"
+   ],
+   "rc": 0,
+   "prompt": "plan",
+   "variant": "6 experts + bias 3.0"
+  }
+ ],
+ "prompt_lookup": [
+  {
+   "eff_tok_s": 2.0066467785674837,
+   "passes": 63,
+   "accept": null,
+   "wall": 75.9,
+   "prompt": "copy-heavy (spelling fix)",
+   "variant": "plain decode",
+   "round": 1
+  },
+  {
+   "eff_tok_s": 3.223101580578798,
+   "passes": 21,
+   "accept": 76.923,
+   "wall": 270.1,
+   "prompt": "copy-heavy (spelling fix)",
+   "variant": "lookup, draft 3",
+   "round": 1
+  },
+  {
+   "eff_tok_s": 3.226216233110254,
+   "passes": 21,
+   "accept": 72.917,
+   "wall": 230.3,
+   "prompt": "copy-heavy (spelling fix)",
+   "variant": "lookup, draft 6",
+   "round": 1
+  },
+  {
+   "eff_tok_s": 1.8719741988470424,
+   "passes": 63,
+   "accept": null,
+   "wall": 66.6,
+   "prompt": "open-ended (explain)",
+   "variant": "plain decode",
+   "round": 1
+  },
+  {
+   "eff_tok_s": 2.4234648959216494,
+   "passes": 64,
+   "accept": null,
+   "wall": 66.7,
+   "prompt": "open-ended (explain)",
+   "variant": "lookup, draft 3",
+   "round": 1
+  },
+  {
+   "eff_tok_s": 2.3273251978771885,
+   "passes": 64,
+   "accept": null,
+   "wall": 68.1,
+   "prompt": "open-ended (explain)",
+   "variant": "lookup, draft 6",
+   "round": 1
+  },
+  {
+   "eff_tok_s": 2.0141766062019375,
+   "passes": 63,
+   "accept": null,
+   "wall": 71.5,
+   "prompt": "copy-heavy (spelling fix)",
+   "variant": "plain decode",
+   "round": 2
+  },
+  {
+   "eff_tok_s": 3.218185968910312,
+   "passes": 21,
+   "accept": 76.923,
+   "wall": 260.7,
+   "prompt": "copy-heavy (spelling fix)",
+   "variant": "lookup, draft 3",
+   "round": 2
+  },
+  {
+   "eff_tok_s": 3.0284188719707528,
+   "passes": 21,
+   "accept": 72.917,
+   "wall": 242.4,
+   "prompt": "copy-heavy (spelling fix)",
+   "variant": "lookup, draft 6",
+   "round": 2
+  },
+  {
+   "eff_tok_s": 2.089381761886095,
+   "passes": 63,
+   "accept": null,
+   "wall": 63.8,
+   "prompt": "open-ended (explain)",
+   "variant": "plain decode",
+   "round": 2
+  },
+  {
+   "eff_tok_s": 2.153887885423934,
+   "passes": 64,
+   "accept": null,
+   "wall": 74.4,
+   "prompt": "open-ended (explain)",
+   "variant": "lookup, draft 3",
+   "round": 2
+  },
+  {
+   "eff_tok_s": 2.340265027701059,
+   "passes": 64,
+   "accept": null,
+   "wall": 71.4,
+   "prompt": "open-ended (explain)",
+   "variant": "lookup, draft 6",
+   "round": 2
+  },
+  {
+   "eff_tok_s": 2.057955287491454,
+   "passes": 63,
+   "accept": null,
+   "wall": 72.2,
+   "prompt": "copy-heavy (spelling fix)",
+   "variant": "plain decode",
+   "round": 3
+  },
+  {
+   "eff_tok_s": 3.6480560706218053,
+   "passes": 21,
+   "accept": 76.923,
+   "wall": 254.8,
+   "prompt": "copy-heavy (spelling fix)",
+   "variant": "lookup, draft 3",
+   "round": 3
+  },
+  {
+   "eff_tok_s": 3.3264500073545733,
+   "passes": 21,
+   "accept": 72.917,
+   "wall": 239.6,
+   "prompt": "copy-heavy (spelling fix)",
+   "variant": "lookup, draft 6",
+   "round": 3
+  },
+  {
+   "eff_tok_s": 2.124403017461581,
+   "passes": 63,
+   "accept": null,
+   "wall": 64.9,
+   "prompt": "open-ended (explain)",
+   "variant": "plain decode",
+   "round": 3
+  },
+  {
+   "eff_tok_s": 1.426081515710739,
+   "passes": 64,
+   "accept": null,
+   "wall": 93.7,
+   "prompt": "open-ended (explain)",
+   "variant": "lookup, draft 3",
+   "round": 3
+  },
+  {
+   "eff_tok_s": 2.147190585642877,
+   "passes": 64,
+   "accept": null,
+   "wall": 73.0,
+   "prompt": "open-ended (explain)",
+   "variant": "lookup, draft 6",
+   "round": 3
+  }
+ ],
+ "loopback_latency_4KB_us": {
+  "blocking": {
+   "p50": 25,
+   "p99": 105,
+   "p99.9": 151
+  },
+  "busy_polling": {
+   "p50": 21,
+   "p99": 115,
+   "p99.9": 242
+  }
+ },
+ "qa_30_questions_chat_format": {
+  "baseline_pool_8experts": 28,
+  "6experts_bias1": 28,
+  "6experts_bias3": 28,
+  "8experts_bias3": 28,
+  "details": [
+   [
+    "baseline (pool, 8 experts)",
+    [
+     [
+      "What is 17 times 23?",
+      "391",
+      "17 times 23 is 391. [end of text]",
+      true
+     ],
+     [
+      "What is 144 divided by 12?",
+      "12",
+      "12 [end of text]",
+      true
+     ],
+     [
+      "What is 15 plus 48?",
+      "63",
+      "15 + 48 = 63. [end of text]",
+      true
+     ],
+     [
+      "What is the square root of 81?",
+      "9",
+      "The square root of 81 is 9. [end of text]",
+      true
+     ],
+     [
+      "What is 2 to the power of 10?",
+      "1024",
+      "2^10 = 1024. [end of text]",
+      true
+     ],
+     [
+      "What is the capital of Australia?",
+      "Canberra",
+      "The capital of Australia is Canberra. [end of text]",
+      true
+     ],
+     [
+      "What is the capital of Canada?",
+      "Ottawa",
+      "Ottawa. [end of text]",
+      true
+     ],
+     [
+      "What is the capital of Japan?",
+      "Tokyo",
+      "Tokyo. [end of text]",
+      true
+     ],
+     [
+      "What is the capital of Brazil?",
+      "Brasilia",
+      "Bras\u00edlia. [end of text]",
+      false
+     ],
+     [
+      "What is the capital of Egypt?",
+      "Cairo",
+      "The capital of Egypt is Cairo. [end of text]",
+      true
+     ],
+     [
+      "What is the chemical symbol for gold?",
+      "Au",
+      "Au [end of text]",
+      true
+     ],
+     [
+      "What is the chemical symbol for sodium?",
+      "Na",
+      "Na [end of text]",
+      true
+     ],
+     [
+      "What gas do plants absorb from the air for photosynthesis?",
+      "carbon dioxide",
+      "Plants absorb carbon dioxide (CO\u2082) from the air for photosyn",
+      true
+     ],
+     [
+      "What is the largest planet in the solar system?",
+      "Jupiter",
+      "Jupiter is the largest planet in the solar system. [end of t",
+      true
+     ],
+     [
+      "How many days are in a leap year?",
+      "366",
+      "A leap year has 366 days. [end of text]",
+      true
+     ],
+     [
+      "In Python, what does len([1, 2, 3, 4]) return?",
+      "4",
+      "5 [end of text]",
+      false
+     ],
+     [
+      "In Python, what does 7 // 2 return?",
+      "3",
+      "3 [end of text]",
+      true
+     ],
+     [
+      "In Python, what does 'abc'.upper() return?",
+      "ABC",
+      "'ABC' [end of text]",
+      true
+     ],
+     [
+      "In Python, what does list(range(3)) return?",
+      "[0, 1, 2]",
+      "[0, 1, 2] [end of text]",
+      true
+     ],
+     [
+      "In Python, what is the result of 2 ** 3?",
+      "8",
+      "The result of 2 ** 3 is 8. [end of text]",
+      true
+     ],
+     [
+      "Who wrote the play Romeo and Juliet?",
+      "Shakespeare",
+      "William Shakespeare. [end of text]",
+      true
+     ],
+     [
+      "What is the freezing point of water in degrees Celsius?",
+      "0",
+      "0\u00b0C [end of text]",
+      true
+     ],
+     [
+      "How many sides does a hexagon have?",
+      "6",
+      "A hexagon has 6 sides. [end of text]",
+      true
+     ],
+     [
+      "What is the past tense of the verb 'go'?",
+      "went",
+      "The past tense of the verb \"go\" is **went**. [end of text]",
+      true
+     ],
+     [
+      "Which ocean is the largest?",
+      "Pacific",
+      "The Pacific Ocean is the largest. [end of text]",
+      true
+     ],
+     [
+      "What is the boiling point of water at sea level in degrees Celsius?",
+      "100",
+      "100\u00b0C [end of text]",
+      true
+     ],
+     [
+      "How many minutes are in two hours?",
+      "120",
+      "120 minutes. [end of text]",
+      true
+     ],
+     [
+      "What is the opposite of 'ancient'?",
+      "modern",
+      "Modern [end of text]",
+      true
+     ],
+     [
+      "Which element has the atomic number 1?",
+      "hydrogen",
+      "Hydrogen [end of text]",
+      true
+     ],
+     [
+      "What is the plural of 'mouse' (the animal)?",
+      "mice",
+      "The plural of \"mouse\" is \"mice.\" [end of text]",
+      true
+     ]
+    ]
+   ],
+   [
+    "6 experts + bias 1.0",
+    [
+     [
+      "What is 17 times 23?",
+      "391",
+      "17 \u00d7 23 = 391. [end of text]",
+      true
+     ],
+     [
+      "What is 144 divided by 12?",
+      "12",
+      "12 [end of text]",
+      true
+     ],
+     [
+      "What is 15 plus 48?",
+      "63",
+      "63 [end of text]",
+      true
+     ],
+     [
+      "What is the square root of 81?",
+      "9",
+      "The square root of 81 is 9. [end of text]",
+      true
+     ],
+     [
+      "What is 2 to the power of 10?",
+      "1024",
+      "2^10 = 1024. [end of text]",
+      true
+     ],
+     [
+      "What is the capital of Australia?",
+      "Canberra",
+      "The capital of Australia is Canberra. [end of text]",
+      true
+     ],
+     [
+      "What is the capital of Canada?",
+      "Ottawa",
+      "Ottawa. [end of text]",
+      true
+     ],
+     [
+      "What is the capital of Japan?",
+      "Tokyo",
+      "The capital of Japan is Tokyo. [end of text]",
+      true
+     ],
+     [
+      "What is the capital of Brazil?",
+      "Brasilia",
+      "Bras\u00edlia [end of text]",
+      false
+     ],
+     [
+      "What is the capital of Egypt?",
+      "Cairo",
+      "The capital of Egypt is Cairo. [end of text]",
+      true
+     ],
+     [
+      "What is the chemical symbol for gold?",
+      "Au",
+      "Au [end of text]",
+      true
+     ],
+     [
+      "What is the chemical symbol for sodium?",
+      "Na",
+      "Na [end of text]",
+      true
+     ],
+     [
+      "What gas do plants absorb from the air for photosynthesis?",
+      "carbon dioxide",
+      "Plants absorb carbon dioxide (CO\u2082) from the air for photosyn",
+      true
+     ],
+     [
+      "What is the largest planet in the solar system?",
+      "Jupiter",
+      "The largest planet in the solar system is Jupiter. [end of t",
+      true
+     ],
+     [
+      "How many days are in a leap year?",
+      "366",
+      "A leap year has 366 days. [end of text]",
+      true
+     ],
+     [
+      "In Python, what does len([1, 2, 3, 4]) return?",
+      "4",
+      "5 [end of text]",
+      false
+     ],
+     [
+      "In Python, what does 7 // 2 return?",
+      "3",
+      "3 [end of text]",
+      true
+     ],
+     [
+      "In Python, what does 'abc'.upper() return?",
+      "ABC",
+      "'ABC' [end of text]",
+      true
+     ],
+     [
+      "In Python, what does list(range(3)) return?",
+      "[0, 1, 2]",
+      "[0, 1, 2] [end of text]",
+      true
+     ],
+     [
+      "In Python, what is the result of 2 ** 3?",
+      "8",
+      "The result of 2 ** 3 is 8. [end of text]",
+      true
+     ],
+     [
+      "Who wrote the play Romeo and Juliet?",
+      "Shakespeare",
+      "William Shakespeare. [end of text]",
+      true
+     ],
+     [
+      "What is the freezing point of water in degrees Celsius?",
+      "0",
+      "The freezing point of water is 0\u00b0C. [end of text]",
+      true
+     ],
+     [
+      "How many sides does a hexagon have?",
+      "6",
+      "A hexagon has 6 sides. [end of text]",
+      true
+     ],
+     [
+      "What is the past tense of the verb 'go'?",
+      "went",
+      "The past tense of the verb \"go\" is **went**. [end of text]",
+      true
+     ],
+     [
+      "Which ocean is the largest?",
+      "Pacific",
+      "The Pacific Ocean is the largest. [end of text]",
+      true
+     ],
+     [
+      "What is the boiling point of water at sea level in degrees Celsius?",
+      "100",
+      "100\u00b0C [end of text]",
+      true
+     ],
+     [
+      "How many minutes are in two hours?",
+      "120",
+      "120 minutes [end of text]",
+      true
+     ],
+     [
+      "What is the opposite of 'ancient'?",
+      "modern",
+      "Modern [end of text]",
+      true
+     ],
+     [
+      "Which element has the atomic number 1?",
+      "hydrogen",
+      "Hydrogen [end of text]",
+      true
+     ],
+     [
+      "What is the plural of 'mouse' (the animal)?",
+      "mice",
+      "The plural of \"mouse\" (the animal) is **mice**. [end of text",
+      true
+     ]
+    ]
+   ],
+   [
+    "6 experts + bias 3.0",
+    [
+     [
+      "What is 17 times 23?",
+      "391",
+      "17 \u00d7 23 = 391 [end of text]",
+      true
+     ],
+     [
+      "What is 144 divided by 12?",
+      "12",
+      "12 [end of text]",
+      true
+     ],
+     [
+      "What is 15 plus 48?",
+      "63",
+      "63 [end of text]",
+      true
+     ],
+     [
+      "What is the square root of 81?",
+      "9",
+      "The square root of 81 is 9. [end of text]",
+      true
+     ],
+     [
+      "What is 2 to the power of 10?",
+      "1024",
+      "2^10 = 1024. [end of text]",
+      true
+     ],
+     [
+      "What is the capital of Australia?",
+      "Canberra",
+      "The capital of Australia is Canberra. [end of text]",
+      true
+     ],
+     [
+      "What is the capital of Canada?",
+      "Ottawa",
+      "Ottawa. [end of text]",
+      true
+     ],
+     [
+      "What is the capital of Japan?",
+      "Tokyo",
+      "The capital of Japan is Tokyo. [end of text]",
+      true
+     ],
+     [
+      "What is the capital of Brazil?",
+      "Brasilia",
+      "Bras\u00edlia [end of text]",
+      false
+     ],
+     [
+      "What is the capital of Egypt?",
+      "Cairo",
+      "The capital of Egypt is Cairo. [end of text]",
+      true
+     ],
+     [
+      "What is the chemical symbol for gold?",
+      "Au",
+      "Au [end of text]",
+      true
+     ],
+     [
+      "What is the chemical symbol for sodium?",
+      "Na",
+      "Na [end of text]",
+      true
+     ],
+     [
+      "What gas do plants absorb from the air for photosynthesis?",
+      "carbon dioxide",
+      "Plants absorb carbon dioxide (CO\u2082) from the air for photosyn",
+      true
+     ],
+     [
+      "What is the largest planet in the solar system?",
+      "Jupiter",
+      "The largest planet in the solar system is Jupiter. [end of t",
+      true
+     ],
+     [
+      "How many days are in a leap year?",
+      "366",
+      "A leap year has 366 days. [end of text]",
+      true
+     ],
+     [
+      "In Python, what does len([1, 2, 3, 4]) return?",
+      "4",
+      "5 [end of text]",
+      false
+     ],
+     [
+      "In Python, what does 7 // 2 return?",
+      "3",
+      "3 [end of text]",
+      true
+     ],
+     [
+      "In Python, what does 'abc'.upper() return?",
+      "ABC",
+      "'ABC' [end of text]",
+      true
+     ],
+     [
+      "In Python, what does list(range(3)) return?",
+      "[0, 1, 2]",
+      "[0, 1, 2] [end of text]",
+      true
+     ],
+     [
+      "In Python, what is the result of 2 ** 3?",
+      "8",
+      "The result of 2 ** 3 is 8. [end of text]",
+      true
+     ],
+     [
+      "Who wrote the play Romeo and Juliet?",
+      "Shakespeare",
+      "William Shakespeare. [end of text]",
+      true
+     ],
+     [
+      "What is the freezing point of water in degrees Celsius?",
+      "0",
+      "The freezing point of water is 0\u00b0C. [end of text]",
+      true
+     ],
+     [
+      "How many sides does a hexagon have?",
+      "6",
+      "A hexagon has 6 sides. [end of text]",
+      true
+     ],
+     [
+      "What is the past tense of the verb 'go'?",
+      "went",
+      "The past tense of the verb \"go\" is **went**. [end of text]",
+      true
+     ],
+     [
+      "Which ocean is the largest?",
+      "Pacific",
+      "The Pacific Ocean is the largest. [end of text]",
+      true
+     ],
+     [
+      "What is the boiling point of water at sea level in degrees Celsius?",
+      "100",
+      "100\u00b0C [end of text]",
+      true
+     ],
+     [
+      "How many minutes are in two hours?",
+      "120",
+      "120 minutes [end of text]",
+      true
+     ],
+     [
+      "What is the opposite of 'ancient'?",
+      "modern",
+      "Modern [end of text]",
+      true
+     ],
+     [
+      "Which element has the atomic number 1?",
+      "hydrogen",
+      "Hydrogen [end of text]",
+      true
+     ],
+     [
+      "What is the plural of 'mouse' (the animal)?",
+      "mice",
+      "The plural of \"mouse\" is \"mice.\"> [end of text]",
+      true
+     ]
+    ]
+   ],
+   [
+    "8 experts + bias 3.0",
+    [
+     [
+      "What is 17 times 23?",
+      "391",
+      "17 \u00d7 23 = 391 [end of text]",
+      true
+     ],
+     [
+      "What is 144 divided by 12?",
+      "12",
+      "12 [end of text]",
+      true
+     ],
+     [
+      "What is 15 plus 48?",
+      "63",
+      "15 + 48 = 63 [end of text]",
+      true
+     ],
+     [
+      "What is the square root of 81?",
+      "9",
+      "The square root of 81 is 9. [end of text]",
+      true
+     ],
+     [
+      "What is 2 to the power of 10?",
+      "1024",
+      "2^10 = 1024. [end of text]",
+      true
+     ],
+     [
+      "What is the capital of Australia?",
+      "Canberra",
+      "The capital of Australia is Canberra. [end of text]",
+      true
+     ],
+     [
+      "What is the capital of Canada?",
+      "Ottawa",
+      "Ottawa. [end of text]",
+      true
+     ],
+     [
+      "What is the capital of Japan?",
+      "Tokyo",
+      "Tokyo. [end of text]",
+      true
+     ],
+     [
+      "What is the capital of Brazil?",
+      "Brasilia",
+      "Bras\u00edlia [end of text]",
+      false
+     ],
+     [
+      "What is the capital of Egypt?",
+      "Cairo",
+      "The capital of Egypt is Cairo. [end of text]",
+      true
+     ],
+     [
+      "What is the chemical symbol for gold?",
+      "Au",
+      "Au [end of text]",
+      true
+     ],
+     [
+      "What is the chemical symbol for sodium?",
+      "Na",
+      "Na [end of text]",
+      true
+     ],
+     [
+      "What gas do plants absorb from the air for photosynthesis?",
+      "carbon dioxide",
+      "Plants absorb carbon dioxide (CO\u2082) from the air for photosyn",
+      true
+     ],
+     [
+      "What is the largest planet in the solar system?",
+      "Jupiter",
+      "Jupiter is the largest planet in the solar system. [end of t",
+      true
+     ],
+     [
+      "How many days are in a leap year?",
+      "366",
+      "A leap year has 366 days. [end of text]",
+      true
+     ],
+     [
+      "In Python, what does len([1, 2, 3, 4]) return?",
+      "4",
+      "5 [end of text]",
+      false
+     ],
+     [
+      "In Python, what does 7 // 2 return?",
+      "3",
+      "3 [end of text]",
+      true
+     ],
+     [
+      "In Python, what does 'abc'.upper() return?",
+      "ABC",
+      "'ABC' [end of text]",
+      true
+     ],
+     [
+      "In Python, what does list(range(3)) return?",
+      "[0, 1, 2]",
+      "[0, 1, 2] [end of text]",
+      true
+     ],
+     [
+      "In Python, what is the result of 2 ** 3?",
+      "8",
+      "The result of 2 ** 3 is 8. [end of text]",
+      true
+     ],
+     [
+      "Who wrote the play Romeo and Juliet?",
+      "Shakespeare",
+      "William Shakespeare. [end of text]",
+      true
+     ],
+     [
+      "What is the freezing point of water in degrees Celsius?",
+      "0",
+      "0\u00b0C [end of text]",
+      true
+     ],
+     [
+      "How many sides does a hexagon have?",
+      "6",
+      "A hexagon has 6 sides. [end of text]",
+      true
+     ],
+     [
+      "What is the past tense of the verb 'go'?",
+      "went",
+      "The past tense of the verb \"go\" is **went**. [end of text]",
+      true
+     ],
+     [
+      "Which ocean is the largest?",
+      "Pacific",
+      "The Pacific Ocean is the largest. [end of text]",
+      true
+     ],
+     [
+      "What is the boiling point of water at sea level in degrees Celsius?",
+      "100",
+      "100\u00b0C [end of text]",
+      true
+     ],
+     [
+      "How many minutes are in two hours?",
+      "120",
+      "120 minutes [end of text]",
+      true
+     ],
+     [
+      "What is the opposite of 'ancient'?",
+      "modern",
+      "Modern [end of text]",
+      true
+     ],
+     [
+      "Which element has the atomic number 1?",
+      "hydrogen",
+      "Hydrogen [end of text]",
+      true
+     ],
+     [
+      "What is the plural of 'mouse' (the animal)?",
+      "mice",
+      "The plural of \"mouse\" (the animal) is \"mice. [end of text]",
+      true
+     ]
+    ]
+   ]
+  ],
+  "note": "misses identical in all configs (an accent mismatch and one wrong answer); n=30"
+ }
+}

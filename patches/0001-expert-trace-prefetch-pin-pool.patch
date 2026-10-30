@@ -1,8 +1,8 @@
 diff --git a/ggml/src/ggml-cpu/ggml-cpu.c b/ggml/src/ggml-cpu/ggml-cpu.c
-index 8620c6c..976b750 100644
+index 8620c6c..dca532f 100644
 --- a/ggml/src/ggml-cpu/ggml-cpu.c
 +++ b/ggml/src/ggml-cpu/ggml-cpu.c
-@@ -1480,6 +1480,233 @@ struct mmid_row_mapping {
+@@ -1480,6 +1480,306 @@ struct mmid_row_mapping {
      int32_t i2;
  };
  
@@ -21,6 +21,10 @@ index 8620c6c..976b750 100644
 +#include <stdint.h>
 +#include <pthread.h>
 +#include <sched.h>
++#if defined(__APPLE__)
++#include <mach/mach.h>
++#include <mach/mach_host.h>
++#endif
 +typedef struct moe_pool_entry {
 +    int tensor, expert; uint64_t len; uint8_t * base; uint8_t * ptr; int64_t stamp; int ready; int queued;
 +    struct moe_pool_entry * prev, * next, * hnext;
@@ -34,7 +38,7 @@ index 8620c6c..976b750 100644
 +    int state;                      // -1 not read, 0 off, 1 on
 +    int fd, direct, log, async;
 +    moe_pool_tensor t[MOE_POOL_MAXT]; int nt;
-+    uint64_t cap, used; int64_t op;
++    uint64_t cap, cap_max, used; int64_t op; int adapt; uint64_t adapt_shrinks, adapt_grows; char warm_path[512]; int warm_loaded;
 +    moe_pool_entry * mru, * lru; moe_pool_entry * h[MOE_POOL_HASH];
 +    uint64_t hits, misses, evictions, bytes, fallbacks, ops, stalls, siblings;
 +    // work list of the current op
@@ -43,11 +47,27 @@ index 8620c6c..976b750 100644
 +    pthread_t io[MOE_POOL_MAXIO]; int nio; pthread_mutex_t mu; pthread_cond_t cv; moe_pool_entry * q[1024]; int qh, qt;
 +} moe_pool = { .state = -1, .mu = PTHREAD_MUTEX_INITIALIZER, .cv = PTHREAD_COND_INITIALIZER };
 +
++
++// memory the machine can still give out without swapping (bytes), or 0 if unknown
++static uint64_t moe_pool_avail_bytes(void) {
++#if defined(__APPLE__)
++    vm_statistics64_data_t vm; mach_msg_type_number_t cnt = HOST_VM_INFO64_COUNT; vm_size_t ps = 0;
++    if (host_page_size(mach_host_self(), &ps) != KERN_SUCCESS) return 0;
++    if (host_statistics64(mach_host_self(), HOST_VM_INFO64, (host_info64_t) &vm, &cnt) != KERN_SUCCESS) return 0;
++    return (uint64_t) (vm.free_count + vm.inactive_count + vm.purgeable_count + vm.speculative_count) * ps;
++#else
++    FILE * f = fopen("/proc/meminfo", "r"); if (!f) return 0; char line[256]; unsigned long long kb = 0;
++    while (fgets(line, sizeof line, f)) if (sscanf(line, "MemAvailable: %llu kB", &kb) == 1) break;
++    fclose(f); return (uint64_t) kb * 1024ull;
++#endif
++}
++static void moe_pool_warm_save(void);
 +static void moe_pool_report(void) {
++    moe_pool_warm_save();
 +    if (moe_pool.state == 1 && moe_pool.log) {
-+        fprintf(stderr, "moe-pool: ops=%llu hits=%llu misses=%llu evictions=%llu fallbacks=%llu siblings=%llu stalls=%llu read=%.1f MiB used=%.1f MiB async=%d\n", (unsigned long long) moe_pool.ops, (unsigned long long) moe_pool.hits,
++        fprintf(stderr, "moe-pool: ops=%llu hits=%llu misses=%llu evictions=%llu fallbacks=%llu siblings=%llu stalls=%llu read=%.1f MiB used=%.1f MiB async=%d adapt=%d(cap %.0f MiB, shrinks %llu, grows %llu)\n", (unsigned long long) moe_pool.ops, (unsigned long long) moe_pool.hits,
 +                (unsigned long long) moe_pool.misses, (unsigned long long) moe_pool.evictions, (unsigned long long) moe_pool.fallbacks, (unsigned long long) moe_pool.siblings, (unsigned long long) moe_pool.stalls,
-+                moe_pool.bytes / 1048576.0, moe_pool.used / 1048576.0, moe_pool.async);
++                moe_pool.bytes / 1048576.0, moe_pool.used / 1048576.0, moe_pool.async, moe_pool.adapt, moe_pool.cap / 1048576.0, (unsigned long long) moe_pool.adapt_shrinks, (unsigned long long) moe_pool.adapt_grows);
 +    }
 +}
 +static int moe_pool_find_tensor(const char * name) {
@@ -90,6 +110,8 @@ index 8620c6c..976b750 100644
 +    if (!model[0] || moe_pool.nt == 0) return;
 +    const char * mb = getenv("GGML_MOE_POOL_MB"); { double m = mb ? atof(mb) : 1024.0; moe_pool.cap = m > 0 ? (uint64_t) (m * 1048576.0) : 0; }
 +    moe_pool.direct = getenv("GGML_MOE_POOL_DIRECT") != NULL; moe_pool.log = getenv("GGML_MOE_POOL_LOG") != NULL;
++    moe_pool.cap_max = moe_pool.cap; moe_pool.adapt = getenv("GGML_MOE_POOL_ADAPT") != NULL && atoi(getenv("GGML_MOE_POOL_ADAPT")) != 0;
++    if (getenv("GGML_MOE_POOL_WARM")) snprintf(moe_pool.warm_path, sizeof moe_pool.warm_path, "%s", getenv("GGML_MOE_POOL_WARM"));
 +    int flags = O_RDONLY;
 +#if defined(O_DIRECT)
 +    if (moe_pool.direct) flags |= O_DIRECT;
@@ -147,11 +169,53 @@ index 8620c6c..976b750 100644
 +    unsigned hh = moe_pool_hash(t, e); x->hnext = moe_pool.h[hh]; moe_pool.h[hh] = x; moe_pool_push_front(x); moe_pool.used += x->len; moe_pool.misses++;
 +    moe_pool.todo[moe_pool.ntodo++] = x; *is_new = 1; return x;
 +}
++// warm start (GGML_MOE_POOL_WARM=<file>): at exit write the resident experts, most recently used first; at the first decode step queue them for loading in the background
++static void moe_pool_warm_save(void) {
++    if (moe_pool.state != 1 || !moe_pool.warm_path[0]) return;
++    FILE * f = fopen(moe_pool.warm_path, "w"); if (!f) return;
++    for (moe_pool_entry * x = moe_pool.mru; x; x = x->next) if (__atomic_load_n(&x->ready, __ATOMIC_ACQUIRE)) fprintf(f, "%s %d\n", moe_pool.t[x->tensor].name, x->expert);
++    fclose(f);
++}
++static void moe_pool_warm_load(void) {
++    moe_pool.warm_loaded = 1;
++    FILE * f = fopen(moe_pool.warm_path, "r"); if (!f) return;
++    char line[256], nm[96]; int e; int n = 0; moe_pool.ntodo = 0; moe_pool.op++;
++    while (fgets(line, sizeof line, f) && n < 4096) {
++        if (sscanf(line, "%95s %d", nm, &e) != 2) continue;
++        int t = moe_pool_find_tensor(nm); if (t < 0 || e < 0) continue;
++        if (moe_pool.used + moe_pool.t[t].stride + 8192 > moe_pool.cap * 9 / 10) break;   // keep 10% free for the first real steps
++        int isnew; moe_pool_entry * x = moe_pool_get(t, e, 0, &isnew); if (!x) break; (void) x; n++;
++    }
++    fclose(f);
++    for (int i = 0; i < moe_pool.ntodo; ++i) {
++        moe_pool_entry * x = moe_pool.todo[i];
++        if (moe_pool.async) { pthread_mutex_lock(&moe_pool.mu); x->queued = 1; moe_pool.q[moe_pool.qt++ % 1024] = x; pthread_cond_broadcast(&moe_pool.cv); pthread_mutex_unlock(&moe_pool.mu); }
++        else { moe_pool_read_entry(x); __atomic_store_n(&x->ready, 1, __ATOMIC_RELEASE); }
++        if (moe_pool.async && moe_pool.qt - moe_pool.qh > 900) { while (moe_pool.qt - moe_pool.qh > 300) sched_yield(); }   // do not overrun the queue
++    }
++    moe_pool.misses -= moe_pool.ntodo; moe_pool.ntodo = 0;
++    if (moe_pool.log) fprintf(stderr, "moe-pool: warm start queued %d experts from %s\n", n, moe_pool.warm_path);
++}
++// adaptive capacity (GGML_MOE_POOL_ADAPT=1): every 16 ops compare the memory the OS can still give out with a floor; shrink the pool under pressure, grow back toward the configured size when there is room
++static void moe_pool_adapt(void) {
++    if (!moe_pool.adapt || (moe_pool.ops & 15) != 0) return;
++    const uint64_t avail = moe_pool_avail_bytes(); if (avail == 0) return;
++    const uint64_t floor_ = 1024ull << 20, grow_ = 2560ull << 20, step = moe_pool.cap_max / 8, minc = 256ull << 20;
++    if (avail < floor_ && moe_pool.cap > minc) { moe_pool.cap = moe_pool.cap > minc + step ? moe_pool.cap - step : minc; moe_pool.adapt_shrinks++; }
++    else if (avail > grow_ && moe_pool.cap < moe_pool.cap_max) { moe_pool.cap = moe_pool.cap + step < moe_pool.cap_max ? moe_pool.cap + step : moe_pool.cap_max; moe_pool.adapt_grows++; }
++    while (moe_pool.used > moe_pool.cap) {
++        moe_pool_entry * v = moe_pool.lru; while (v && v->stamp >= moe_pool.op) v = v->prev;
++        if (!v) break;
++        moe_pool_evict(v);
++    }
++}
 +// thread 0, before the first barrier of the op: decide hits/misses and allocate buffers; returns 1 if the pool serves this op
 +static int moe_pool_prepare(const struct ggml_tensor * src0, const struct ggml_tensor * ids) {
 +    if (moe_pool.state < 0) moe_pool_init();
 +    moe_pool.active = 0; moe_pool.ntodo = 0; moe_pool.ncur = 0;
++    if (moe_pool.state == 1 && moe_pool.warm_path[0] && !moe_pool.warm_loaded) moe_pool_warm_load();   // as early as the first MoE op, even during prefill
 +    if (moe_pool.state != 1 || ids->ne[1] != 1) return 0;
++    moe_pool_adapt();
 +    const int t = moe_pool_find_tensor(src0->name); if (t < 0) return 0;
 +    const uint64_t stride = moe_pool.t[t].stride; const int n_ids = (int) ids->ne[0];
 +    // the offsets file must describe *this* tensor: same expert stride, and the same memory the first op bound the name to (two models/contexts may share tensor names)
@@ -211,6 +275,14 @@ index 8620c6c..976b750 100644
 +    (void) src0;
 +    for (int i = ith; i < moe_pool.ntodo; i += nth) { moe_pool_read_entry(moe_pool.todo[i]); __atomic_store_n(&moe_pool.todo[i]->ready, 1, __ATOMIC_RELEASE); }
 +}
++// residency mask of one layer for cache-aware routing: out[e] = 1 when expert e of that layer's ffn_down_exps tensor is in the pool (read or being read). Called from the graph thread that also runs the pool preparation.
++int ggml_cpu_moe_pool_mask(int layer, int n_expert, unsigned char * out) {
++    if (moe_pool.state != 1) return 0;
++    char nm[96]; snprintf(nm, sizeof nm, "blk.%d.ffn_down_exps.weight", layer);
++    const int t = moe_pool_find_tensor(nm); if (t < 0) return 0;
++    for (int e = 0; e < n_expert; ++e) out[e] = moe_pool_lookup(t, e) != NULL;
++    return 1;
++}
 +static const char * moe_pool_ptr(const struct ggml_tensor * src0, int expert) {
 +    if (!moe_pool.active) return NULL;
 +    (void) src0; const int t = moe_pool.cur_t;
@@ -231,12 +303,13 @@ index 8620c6c..976b750 100644
 +static int moe_pool_prepare(const struct ggml_tensor * a, const struct ggml_tensor * b) { (void) a; (void) b; return 0; }
 +static void moe_pool_load(const struct ggml_tensor * a, int i, int n) { (void) a; (void) i; (void) n; }
 +static const char * moe_pool_ptr(const struct ggml_tensor * a, int e) { (void) a; (void) e; return NULL; }
++int ggml_cpu_moe_pool_mask(int layer, int n_expert, unsigned char * out) { (void) layer; (void) n_expert; (void) out; return 0; }
 +#endif
 +
  static void ggml_compute_forward_mul_mat_id_one_chunk(
      struct ggml_tensor * dst,
      const struct ggml_tensor * src0,
-@@ -1551,6 +1778,182 @@ static void * incr_ptr_aligned(void ** p, size_t size, size_t align) {
+@@ -1551,6 +1851,182 @@ static void * incr_ptr_aligned(void ** p, size_t size, size_t align) {
      return ptr;
  }
  
@@ -419,7 +492,7 @@ index 8620c6c..976b750 100644
  static void ggml_compute_forward_mul_mat_id(
          const struct ggml_compute_params * params,
                struct ggml_tensor * dst) {
-@@ -1585,6 +1988,22 @@ static void ggml_compute_forward_mul_mat_id(
+@@ -1585,6 +2061,22 @@ static void ggml_compute_forward_mul_mat_id(
      const int n_ids = ids->ne[0]; // n_expert_used
      const int n_as  = ne02;       // n_expert
  
@@ -442,7 +515,7 @@ index 8620c6c..976b750 100644
      void * wdata_cur = params->wdata;
  
      if (src1->type != vec_dot_type) {
-@@ -1668,19 +2087,28 @@ static void ggml_compute_forward_mul_mat_id(
+@@ -1668,19 +2160,28 @@ static void ggml_compute_forward_mul_mat_id(
  
      ggml_barrier(params->threadpool);
  
@@ -475,3 +548,26 @@ index 8620c6c..976b750 100644
          const void * wdata = (src1->type == vec_dot_type) ? src1->data : params->wdata;
          const size_t row_size = ggml_row_size(vec_dot_type, ne10);
  
+diff --git a/ggml/src/ggml-cpu/ggml-cpu.cpp b/ggml/src/ggml-cpu/ggml-cpu.cpp
+index 81ff5d7..3b5bf55 100644
+--- a/ggml/src/ggml-cpu/ggml-cpu.cpp
++++ b/ggml/src/ggml-cpu/ggml-cpu.cpp
+@@ -655,6 +655,8 @@ static ggml_backend_feature * ggml_backend_cpu_get_features(ggml_backend_reg_t r
+     GGML_UNUSED(reg);
+ }
+ 
++extern "C" int ggml_cpu_moe_pool_mask(int layer, int n_expert, unsigned char * out);
++
+ static void * ggml_backend_cpu_get_proc_address(ggml_backend_reg_t reg, const char * name) {
+     if (strcmp(name, "ggml_backend_set_n_threads") == 0) {
+         ggml_backend_set_n_threads_t fct = ggml_backend_cpu_set_n_threads;
+@@ -676,6 +678,9 @@ static void * ggml_backend_cpu_get_proc_address(ggml_backend_reg_t reg, const ch
+     if (strcmp(name, "ggml_backend_cpu_is_numa") == 0) {
+         return (void *)ggml_is_numa;
+     }
++    if (strcmp(name, "ggml_cpu_moe_pool_mask") == 0) {
++        return (void *) ggml_cpu_moe_pool_mask;
++    }
+     if (strcmp(name, "ggml_backend_cpu_set_use_ref") == 0) {
+         return (void *)ggml_backend_cpu_set_use_ref;
+     }
